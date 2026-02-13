@@ -1,0 +1,3307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Quick Notes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#007AFF">
+    <link rel="manifest" href="manifest.json">
+    <title>Somio - Quick Notes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f7;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: pan-y;
+        }
+
+        /* Capture Screen */
+        #capture-screen {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: white;
+        }
+
+        .capture-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: white;
+            border-bottom: 1px solid #e8e8e8;
+            min-height: 60px;
+        }
+
+        .capture-title {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+            font-size: 17px;
+            font-weight: 500;
+            color: #1c1c1e;
+            letter-spacing: -0.3px;
+        }
+
+        .header-circle-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            background: #f2f2f7;
+            color: #007AFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .header-circle-btn:active {
+            transform: scale(0.92);
+            background: #e5e5ea;
+        }
+
+        .fab-small {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #007AFF;
+            color: white;
+            border: none;
+            font-size: 28px;
+            font-weight: 300;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .fab-small:active {
+            transform: scale(0.92);
+            box-shadow: 0 2px 6px rgba(0, 122, 255, 0.4);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 15px;
+            z-index: 10000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        #note-input {
+            flex: 1;
+            border: none;
+            padding: 20px;
+            font-size: 16px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            -webkit-user-select: text;
+            user-select: text;
+        }
+
+        #note-input::placeholder {
+            color: #999;
+        }
+
+        .button-bar {
+            display: flex;
+            gap: 10px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .primary-btn {
+            background: #007AFF;
+            color: white;
+        }
+
+        .primary-btn:hover {
+            background: #0051D5;
+        }
+
+        .secondary-btn {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .secondary-btn:hover {
+            background: #d0d0d0;
+        }
+
+        /* Archive Screen */
+        #archive-screen {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+            background: white;
+        }
+
+        .header {
+            padding: 15px 20px;
+            background: #f9f9f9;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header h2 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px 10px;
+            color: #007AFF;
+        }
+
+        .search-bar {
+            padding: 15px 20px;
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            position: relative;
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 10px 40px 10px 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            outline: none;
+            -webkit-user-select: text;
+            user-select: text;
+        }
+
+        .search-clear-btn {
+            position: absolute;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #d0d0d0;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .search-clear-btn:active {
+            background: #b0b0b0;
+        }
+
+        .search-clear-btn {
+            position: absolute;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: #e0e0e0;
+            border-radius: 50%;
+            font-size: 20px;
+            color: #666;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .search-clear-btn:active {
+            background: #ccc;
+        }
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 10px;
+            padding: 15px 20px;
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            overflow: hidden;
+            max-height: 100px;
+            opacity: 1;
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out, padding 0.3s ease-out, transform 0.3s ease-out;
+            transform: translateY(0);
+        }
+
+        .filter-tabs.hidden {
+            max-height: 0;
+            opacity: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            transform: translateY(-10px);
+            border-bottom: none;
+        }
+
+        .filter-tab {
+            padding: 8px 16px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .filter-tab.active {
+            background: #007AFF;
+            color: white;
+        }
+
+        .filter-tab.locked::after {
+            content: "🔒";
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .tab-count {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-left: 4px;
+            font-weight: 500;
+        }
+
+        .filter-tab.active .tab-count {
+            opacity: 0.9;
+        }
+
+        .unsorted-badge {
+            display: inline-block;
+            background: #FF3B30;
+            color: white;
+            border-radius: 10px;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 5px;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        .filter-tab.active .unsorted-badge {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .notes-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .swipeable-note-container {
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .swipe-action {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .archive-action {
+            background: #4CAF50;
+        }
+
+        .delete-action {
+            background: #FF3B30;
+        }
+
+        .note-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+            position: relative;
+            touch-action: pan-y;
+        }
+
+        .note-card:hover {
+            border-color: #007AFF;
+            box-shadow: 0 2px 8px rgba(0,122,255,0.1);
+        }
+
+        .note-preview {
+            font-size: 15px;
+            color: #333;
+            margin-bottom: 10px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .note-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #999;
+        }
+
+        .note-tags {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            padding: 4px 10px;
+            background: #e8f4ff;
+            color: #007AFF;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .para-badge {
+            padding: 4px 10px;
+            background: #f0f0f0;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .para-badge.active { background: #FFE5E5; color: #D32F2F; }
+        .para-badge.ideas { background: #FFF9C4; color: #F57F17; }
+        .para-badge.reference { background: #E3F2FD; color: #1976D2; }
+        .para-badge.someday { background: #F3E5F5; color: #7B1FA2; }
+
+        /* Edit Modal */
+        #edit-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-text {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        #modal-note-edit {
+            width: 100%;
+            min-height: 150px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            margin-bottom: 5px;
+            -webkit-user-select: text;
+            user-select: text;
+        }
+
+        #modal-note-edit:focus {
+            outline: none;
+            border-color: #007AFF;
+        }
+
+        .inline-tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 10px 0;
+            min-height: 44px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .inline-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            background: #e8f4ff;
+            color: #007AFF;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .inline-tag:active {
+            transform: scale(0.95);
+        }
+
+        .inline-tag.tag-wiggle {
+            animation: wiggle 0.3s ease-in-out infinite;
+        }
+
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(-1deg); }
+            50% { transform: rotate(1deg); }
+        }
+
+        .tag-delete-btn {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 20px;
+            height: 20px;
+            background: #FF3B30;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 10;
+            line-height: 1;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .tag-delete-btn:active {
+            transform: scale(0.9);
+        }
+
+        .add-tag-btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            background: #f0f0f0;
+            color: #666;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px dashed #ccc;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .tag-suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .tag-suggestion {
+            padding: 6px 12px;
+            background: #f0f0f0;
+            border: 1px solid #e0e0e0;
+            border-radius: 16px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tag-suggestion:hover {
+            background: #e8f4ff;
+            border-color: #007AFF;
+        }
+
+        .tag-suggestion.selected {
+            background: #007AFF;
+            color: white;
+            border-color: #007AFF;
+        }
+
+        .tag-suggestion.ai-suggested::before {
+            content: "✨ ";
+        }
+
+        .custom-tag-input-container {
+            display: none;
+            margin-top: 10px;
+        }
+
+        .custom-tag-input-container.active {
+            display: flex;
+            gap: 8px;
+        }
+
+        .custom-tag-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #007AFF;
+            border-radius: 16px;
+            font-size: 13px;
+            outline: none;
+            -webkit-user-select: text;
+            user-select: text;
+        }
+
+        .custom-tag-add-btn {
+            padding: 8px 16px;
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .para-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .para-option {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .para-option:hover {
+            border-color: #007AFF;
+        }
+
+        .para-option.selected {
+            border-color: #007AFF;
+            background: #e8f4ff;
+        }
+
+        .para-option-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .para-option-desc {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .selected-category-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .selected-category-badge:hover {
+            opacity: 0.8;
+        }
+
+        .selected-category-badge.active {
+            background: #FFE5E5;
+            color: #D32F2F;
+            border-color: #D32F2F;
+        }
+
+        .selected-category-badge.ideas {
+            background: #FFF9C4;
+            color: #F57F17;
+            border-color: #F57F17;
+        }
+
+        .selected-category-badge.reference {
+            background: #E3F2FD;
+            color: #1976D2;
+            border-color: #1976D2;
+        }
+
+        .selected-category-badge.someday {
+            background: #F3E5F5;
+            color: #7B1FA2;
+            border-color: #7B1FA2;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .delete-btn {
+            background: #FF3B30;
+            color: white;
+        }
+
+        .delete-btn:hover {
+            background: #D32F2F;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        /* Radial Menu for Quick Sort */
+        .radial-menu {
+            position: fixed;
+            display: none;
+            z-index: 2000;
+            pointer-events: none;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+
+        .radial-menu.active {
+            display: block;
+            pointer-events: all;
+        }
+
+        .radial-center {
+            position: fixed;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #007AFF;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            z-index: 2001;
+        }
+
+        .radial-option {
+            position: fixed;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            transition: transform 0.2s ease-out;
+            transform: translate(-50%, -50%) scale(0);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            text-align: center;
+            padding: 5px;
+            z-index: 2001;
+            opacity: 0;
+        }
+
+        .radial-menu.active .radial-option {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease-out;
+        }
+
+        .radial-option.active-highlight {
+            transform: translate(-50%, -50%) scale(1.3) !important;
+            box-shadow: 0 4px 16px rgba(0,122,255,0.5);
+            z-index: 2002;
+        }
+
+        .radial-option-icon {
+            font-size: 24px;
+            margin-bottom: 2px;
+        }
+
+        .radial-option.active-cat {
+            background: #FFE5E5;
+            color: #D32F2F;
+            border: 2px solid #D32F2F;
+        }
+
+        .radial-option.ideas-cat {
+            background: #FFF9C4;
+            color: #F57F17;
+            border: 2px solid #F57F17;
+        }
+
+        .radial-option.reference-cat {
+            background: #E3F2FD;
+            color: #1976D2;
+            border: 2px solid #1976D2;
+        }
+
+        .radial-option.someday-cat {
+            background: #F3E5F5;
+            color: #7B1FA2;
+            border: 2px solid #7B1FA2;
+        }
+
+        .radial-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.3);
+            display: none;
+            z-index: 1999;
+        }
+
+        .radial-overlay.active {
+            display: block;
+        }
+
+        /* Swipe Zone Indicators */
+        .swipe-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1999;
+            pointer-events: none;
+        }
+
+        .swipe-overlay.active {
+            display: block;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideInTop {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes slideInBottom {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes slideInLeft {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideOutTop {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(-100%); opacity: 0; }
+        }
+
+        @keyframes slideOutBottom {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(100%); opacity: 0; }
+        }
+
+        @keyframes slideOutLeft {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(-100%); opacity: 0; }
+        }
+
+        @keyframes slideOutRight {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
+        /* Opie-Style Radial Menu */
+        #radial-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 2001;
+            pointer-events: none;
+        }
+
+        .radial-center {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.95);
+            border: 3px solid #007AFF;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            z-index: 2002;
+            animation: radialCenterPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes radialCenterPop {
+            0% { transform: translate(-50%, -50%) scale(0); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .radial-arrow {
+            font-size: 36px;
+            font-weight: bold;
+            color: #007AFF;
+            transition: transform 0.1s ease-out;
+            line-height: 1;
+        }
+
+        .radial-cancel-text {
+            font-size: 9px;
+            color: #666;
+            margin-top: 2px;
+            text-align: center;
+        }
+
+        .radial-category {
+            position: fixed;
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            opacity: 0;
+            animation: radialCategoryAppear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        @keyframes radialCategoryAppear {
+            0% { 
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0);
+            }
+            100% { 
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        .radial-category.highlight {
+            transform: translate(-50%, -50%) scale(1.3) !important;
+            background: rgba(0, 122, 255, 0.95);
+            border-color: #007AFF;
+            box-shadow: 0 8px 24px rgba(0, 122, 255, 0.5);
+        }
+
+        .radial-category.highlight .radial-category-emoji {
+            transform: scale(1.2);
+        }
+
+        .radial-category.highlight .radial-category-name {
+            color: white;
+        }
+
+        .radial-category-emoji {
+            font-size: 36px;
+            transition: transform 0.2s;
+        }
+
+        .radial-category-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: #333;
+            text-align: center;
+            margin-top: 2px;
+            transition: color 0.2s;
+            max-width: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Floating Action Button */
+        .fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #007AFF;
+            color: white;
+            border: none;
+            font-size: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
+            cursor: pointer;
+            z-index: 1000;
+            transition: all 0.2s;
+        }
+
+        .fab:active {
+            transform: scale(0.95);
+        }
+
+        .fab.hidden {
+            display: none;
+        }
+
+        /* Long press indicator */
+        .note-card {
+            position: relative;
+        }
+
+        .long-press-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(0, 122, 255, 0.2);
+            border: 3px solid #007AFF;
+            animation: pressGrow 0.5s ease-out;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        @keyframes pressGrow {
+            from {
+                width: 0;
+                height: 0;
+                opacity: 0;
+            }
+            to {
+                width: 80px;
+                height: 80px;
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Capture Screen -->
+    <div id="capture-screen">
+        <div class="capture-header">
+            <button class="header-circle-btn" onclick="viewArchive()" title="View Notes">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+            </button>
+            <div class="capture-title">Somio</div>
+            <button class="fab-small" onclick="saveAndClear()" title="Save & New Note">+</button>
+        </div>
+        <textarea 
+            id="note-input" 
+            placeholder="Start typing your note..."
+            autofocus
+        ></textarea>
+    </div>
+
+    <!-- Archive Screen -->
+    <div id="archive-screen">
+        <div class="header">
+            <h2 style="margin: 0; white-space: nowrap;">Somio</h2>
+            <div class="search-bar" style="padding: 0; border: none; background: transparent; flex: 1;">
+                <input type="text" id="search-input" placeholder="Search..." oninput="filterNotes()" style="font-size: 16px; padding: 8px 35px 8px 12px;">
+                <button class="search-clear-btn" id="search-clear-btn" onclick="clearSearch()" style="display: none;">×</button>
+            </div>
+            <div style="position: relative;">
+                <button class="close-btn" onclick="toggleExportMenu()" id="export-menu-btn">⋮</button>
+                <div id="export-menu" style="display: none; position: absolute; right: 0; top: 45px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 200px; z-index: 1000; overflow: hidden;">
+                    <button onclick="downloadCSV()" style="width: 100%; padding: 12px 16px; border: none; background: none; text-align: left; font-size: 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0;">Download .csv</button>
+                    <button onclick="copyToClipboard()" style="width: 100%; padding: 12px 16px; border: none; background: none; text-align: left; font-size: 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0;">Copy to Clipboard</button>
+                    <button onclick="document.getElementById('import-file').click()" style="width: 100%; padding: 12px 16px; border: none; background: none; text-align: left; font-size: 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0;">Import .csv</button>
+                    <button onclick="openCategoryManager()" style="width: 100%; padding: 12px 16px; border: none; background: none; text-align: left; font-size: 15px; cursor: pointer;">Manage Categories</button>
+                </div>
+                <input type="file" id="import-file" accept=".csv" style="display: none;" onchange="importNotes(event)">
+            </div>
+        </div>
+        <div class="filter-tabs">
+            <!-- Tabs dynamically populated -->
+        </div>
+        <div class="notes-list" id="notes-list"></div>
+        
+        <!-- Floating Action Button -->
+        <button class="fab" onclick="newNoteFromArchive()">+</button>
+    </div>
+
+    <!-- Tag View Screen -->
+    <div id="tag-view-screen" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1500;">
+        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: white; display: flex; flex-direction: column; z-index: 1501;">
+            <div class="header">
+                <button class="close-btn" onclick="backFromTagView()" style="font-size: 28px;">←</button>
+                <h2 id="tag-view-title">Tag: </h2>
+                <div style="width: 40px;"></div>
+            </div>
+            <div class="notes-list" id="tag-notes-list"></div>
+            
+            <!-- Floating Action Button -->
+            <button class="fab" onclick="newNoteFromArchive()">+</button>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Edit Note</h3>
+                <button class="close-btn" onclick="closeModal()">×</button>
+            </div>
+            
+            <textarea id="modal-note-edit" placeholder="Edit your note..."></textarea>
+            
+            <div style="font-size: 12px; color: #999; margin-bottom: 10px; margin-top: 5px;" id="note-timestamp"></div>
+            
+            <!-- Inline tags display -->
+            <div class="inline-tags-container" id="inline-tags"></div>
+            
+            <div class="section">
+                <div class="section-title">Category</div>
+                
+                <!-- Selected category display (click to change) -->
+                <div id="selected-category-display" style="display: none;">
+                    <div class="selected-category-badge" onclick="deselectCategory()">
+                        <span id="selected-category-text"></span>
+                        <span style="margin-left: 8px; font-size: 12px;">×</span>
+                    </div>
+                </div>
+                
+                <!-- Category selection options -->
+                <div class="para-options" id="category-options">
+                    <!-- Categories dynamically populated -->
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Suggested Tags</div>
+                <div class="tag-suggestions" id="quick-tag-suggestions"></div>
+                <button class="add-tag-btn" onclick="showTagPicker()" style="margin-top: 10px; width: 100%; padding: 10px;">+ Add Tag</button>
+            </div>
+
+            <div class="modal-actions">
+                <button class="secondary-btn delete-btn" onclick="toggleArchiveNote()" id="archive-toggle-btn">Archive Note</button>
+                <button class="secondary-btn" id="delete-btn" style="display: none; background: #D32F2F; position: relative; overflow: hidden;"
+                    ontouchstart="startDeleteHold(event)" 
+                    ontouchend="cancelDeleteHold()" 
+                    ontouchcancel="cancelDeleteHold()"
+                    onmousedown="startDeleteHold(event)" 
+                    onmouseup="cancelDeleteHold()" 
+                    onmouseleave="cancelDeleteHold()">
+                    <span id="delete-btn-text" style="position: relative; z-index: 1;">Hold to Delete</span>
+                    <div id="delete-progress" style="position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: rgba(0,0,0,0.3); transition: none;"></div>
+                </button>
+                <button class="primary-btn" onclick="closeModalWithSave()">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Opie-Style Radial Menu -->
+    <div class="swipe-overlay" id="swipe-overlay"></div>
+    <div id="radial-menu" style="display: none;">
+        <div class="radial-center" id="radial-center">
+            <div class="radial-arrow" id="radial-arrow">→</div>
+            <div class="radial-cancel-text">Release to Cancel</div>
+        </div>
+        <div id="radial-categories">
+            <!-- Categories dynamically positioned in circle -->
+        </div>
+    </div>
+
+    <!-- Tag Picker Modal -->
+    <div id="tag-picker-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000;" onclick="closeTagPicker(event)">
+        <div style="position: absolute; bottom: 0; left: 0; right: 0; background: white; border-radius: 16px 16px 0 0; padding: 20px; max-height: 70vh; overflow-y: auto;" onclick="event.stopPropagation()">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="font-size: 18px; font-weight: 600;">Add Tags</h3>
+                <button class="close-btn" onclick="closeTagPicker()">×</button>
+            </div>
+            
+            <div class="tag-suggestions" id="tag-picker-suggestions"></div>
+            
+            <div class="custom-tag-input-container active" style="margin-top: 15px;">
+                <input type="text" id="tag-picker-input" class="custom-tag-input" placeholder="Create new tag...">
+                <button class="custom-tag-add-btn" onclick="addTagFromPicker()">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let notes = JSON.parse(localStorage.getItem('quickNotes') || '[]');
+        
+        // Category management
+        const DEFAULT_CATEGORIES = [
+            { id: 'active', name: 'Active Projects', emoji: '🔥', color: '#FF6B35' },
+            { id: 'ideas', name: 'Ideas', emoji: '💡', color: '#F7B32B' },
+            { id: 'reference', name: 'Reference', emoji: '📚', color: '#4ECDC4' },
+            { id: 'someday', name: 'Someday/Maybe', emoji: '🌙', color: '#95B8D1' }
+        ];
+        let customCategories = JSON.parse(localStorage.getItem('customCategories') || JSON.stringify(DEFAULT_CATEGORIES));
+        const MIN_CATEGORIES = 1;
+        const MAX_CATEGORIES = 6;
+        
+        let currentFilter = 'unsorted';
+        let currentNoteIndex = null;
+        let selectedTags = new Set();
+        let selectedPara = null;
+        let lockedFilter = localStorage.getItem('lockedFilter') || null;
+
+        // Navigation state
+        let previousView = null; // Where we navigated from (to handle back button)
+        let returnToScreen = 'archive'; // The main screen to return to when closing modals
+        let currentTagFilter = null;
+
+        // Radial menu state
+        let longPressTimer = null;
+        let radialNoteIndex = null;
+        let radialMenuActive = false;
+        let currentTouchX = 0;
+        let currentTouchY = 0;
+        let tabLongPressTimer = null;
+
+        function saveNote() {
+            const text = document.getElementById('note-input').value.trim();
+            if (!text) return;
+
+            const note = {
+                id: Date.now(),
+                text: text,
+                created: new Date().toISOString(),
+                tags: [],
+                para: null
+            };
+
+            notes.unshift(note);
+            localStorage.setItem('quickNotes', JSON.stringify(notes));
+            
+            document.getElementById('note-input').value = '';
+            document.getElementById('note-input').focus();
+            
+            // Show success feedback
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = '✓ Saved';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 1000);
+        }
+
+        function saveAndClear() {
+            const text = document.getElementById('note-input').value.trim();
+            if (!text) {
+                return; // Nothing to save
+            }
+
+            const note = {
+                id: Date.now(),
+                text: text,
+                created: new Date().toISOString(),
+                tags: [],
+                para: null
+            };
+
+            notes.unshift(note);
+            localStorage.setItem('quickNotes', JSON.stringify(notes));
+            updateUnsortedBadge();
+            updateTabCounts();
+            
+            // Clear the text box
+            document.getElementById('note-input').value = '';
+            
+            // Brief haptic feedback
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
+            }
+            
+            // Focus back on textarea for next note
+            document.getElementById('note-input').focus();
+        }
+
+        function viewArchive() {
+            returnToScreen = 'archive';
+            document.getElementById('capture-screen').style.display = 'none';
+            document.getElementById('archive-screen').style.display = 'flex';
+            updateUnsortedBadge();
+            updateTabCounts(); // Add counts to all tabs
+            
+            // Determine which tab to show
+            const unsortedCount = notes.filter(note => (!note.para || note.para === null) && !note.archived).length;
+            
+            if (lockedFilter) {
+                // Use locked filter
+                currentFilter = lockedFilter;
+            } else if (unsortedCount > 0) {
+                // Default to unsorted if there are unsorted notes
+                currentFilter = 'unsorted';
+            } else {
+                // Default to all notes
+                currentFilter = 'all';
+            }
+            
+            // Update active tab
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            const filterMap = {
+                'unsorted': 0,
+                'active': 1,
+                'ideas': 2,
+                'reference': 3,
+                'someday': 4,
+                'archived': 5
+            };
+            
+            const tabs = document.querySelectorAll('.filter-tab');
+            if (tabs[filterMap[currentFilter]]) {
+                tabs[filterMap[currentFilter]].classList.add('active');
+                // Scroll active tab into view
+                scrollActiveTabIntoView();
+            }
+            
+            // Restore locked state
+            if (lockedFilter && tabs[filterMap[lockedFilter]]) {
+                tabs[filterMap[lockedFilter]].classList.add('locked');
+            }
+            
+            renderNotes();
+        }
+
+        function scrollActiveTabIntoView() {
+            const activeTab = document.querySelector('.filter-tab.active');
+            if (activeTab) {
+                activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+            }
+        }
+
+        function updateUnsortedBadge() {
+            const unsortedCount = notes.filter(note => (!note.para || note.para === null) && !note.archived).length;
+            const unsortedTab = document.querySelector('.filter-tab');
+            
+            // Remove existing badge if any
+            const existingBadge = unsortedTab.querySelector('.unsorted-badge');
+            if (existingBadge) {
+                existingBadge.remove();
+            }
+            
+            // Add badge if there are unsorted notes
+            if (unsortedCount > 0) {
+                const badge = document.createElement('span');
+                badge.className = 'unsorted-badge';
+                badge.textContent = unsortedCount;
+                unsortedTab.appendChild(badge);
+            }
+        }
+
+        function updateTabCounts() {
+            const tabs = document.querySelectorAll('.filter-tab');
+            const counts = {
+                'active': notes.filter(n => n.para === 'active' && !n.archived).length,
+                'ideas': notes.filter(n => n.para === 'ideas' && !n.archived).length,
+                'reference': notes.filter(n => n.para === 'reference' && !n.archived).length,
+                'someday': notes.filter(n => n.para === 'someday' && !n.archived).length,
+                'archived': notes.filter(n => n.archived === true).length
+            };
+            
+            const filterMap = {
+                'unsorted': 0,
+                'active': 1,
+                'ideas': 2,
+                'reference': 3,
+                'someday': 4,
+                'archived': 5
+            };
+            
+            // Add counts to category tabs (not Unsorted which has special badge)
+            ['active', 'ideas', 'reference', 'someday', 'archived'].forEach(category => {
+                const tab = tabs[filterMap[category]];
+                if (tab) {
+                    // Remove existing count
+                    const existingCount = tab.querySelector('.tab-count');
+                    if (existingCount) {
+                        existingCount.remove();
+                    }
+                    
+                    // Add new count if > 0
+                    if (counts[category] > 0) {
+                        const countSpan = document.createElement('span');
+                        countSpan.className = 'tab-count';
+                        countSpan.textContent = `(${counts[category]})`;
+                        tab.appendChild(countSpan);
+                    }
+                }
+            });
+        }
+
+        function closeArchive() {
+            document.getElementById('archive-screen').style.display = 'none';
+            document.getElementById('capture-screen').style.display = 'flex';
+            document.getElementById('note-input').focus();
+        }
+
+        function toggleExportMenu() {
+            const menu = document.getElementById('export-menu');
+            menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function showToast(message, duration = 2000) {
+            // Remove any existing toast
+            const existingToast = document.getElementById('toast');
+            if (existingToast) existingToast.remove();
+            
+            // Create new toast
+            const toast = document.createElement('div');
+            toast.id = 'toast';
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            // Show toast
+            setTimeout(() => toast.classList.add('show'), 10);
+            
+            // Hide and remove toast
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        function generateCSV() {
+            let csv = 'ID,Text,Created,Tags,Category,Archived\n';
+            
+            notes.forEach(note => {
+                const text = (note.text || '').replace(/"/g, '""').replace(/\n/g, ' ');
+                const tags = (note.tags || []).join(';');
+                const para = note.para || '';
+                const archived = note.archived ? 'true' : 'false';
+                
+                csv += `"${note.id}","${text}","${note.created}","${tags}","${para}","${archived}"\n`;
+            });
+            
+            return csv;
+        }
+
+        function downloadCSV() {
+            toggleExportMenu();
+            
+            const csv = generateCSV();
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `somio-export-${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function copyToClipboard() {
+            toggleExportMenu();
+            
+            const csv = generateCSV();
+            
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(csv).then(() => {
+                    showToast(`✓ Copied ${notes.length} notes to clipboard!`);
+                }).catch((error) => {
+                    showToast('Failed to copy to clipboard');
+                });
+            } else {
+                showToast('Clipboard not available');
+            }
+        }
+
+        function importNotes(event) {
+            toggleExportMenu();
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const csv = e.target.result;
+                    const lines = csv.split('\n');
+                    const imported = [];
+                    
+                    // Skip header row
+                    for (let i = 1; i < lines.length; i++) {
+                        if (!lines[i].trim()) continue;
+                        
+                        // Parse CSV line (handles quoted fields)
+                        const regex = /("(?:[^"]|"")*"|[^,]*)/g;
+                        const matches = lines[i].match(regex);
+                        if (!matches || matches.length < 6) continue;
+                        
+                        const cleanField = (field) => field.replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+                        
+                        const note = {
+                            id: parseInt(cleanField(matches[0])) || Date.now() + i,
+                            text: cleanField(matches[1]),
+                            created: cleanField(matches[2]),
+                            tags: cleanField(matches[3]).split(';').filter(t => t),
+                            para: cleanField(matches[4]) || null,
+                            archived: cleanField(matches[5]) === 'true'
+                        };
+                        
+                        imported.push(note);
+                    }
+                    
+                    if (imported.length > 0) {
+                        // Add imported notes to beginning
+                        notes = [...imported, ...notes];
+                        localStorage.setItem('quickNotes', JSON.stringify(notes));
+                        updateUnsortedBadge();
+                        updateTabCounts();
+                        renderNotes();
+                        showToast(`✓ Imported ${imported.length} notes!`);
+                    } else {
+                        showToast('No valid notes found in file');
+                    }
+                } catch (error) {
+                    showToast('Error importing notes');
+                    console.error('Import error:', error);
+                }
+            };
+            reader.readAsText(file);
+            
+            // Reset file input
+            event.target.value = '';
+        }
+
+        function openCategoryManager() {
+            toggleExportMenu();
+            renderCategoryManager();
+            document.getElementById('category-manager-modal').style.display = 'block';
+        }
+
+        function closeCategoryManager() {
+            document.getElementById('category-manager-modal').style.display = 'none';
+            // Refresh UI to show updated categories
+            rebuildFilterTabs();
+            updateTabCounts();
+            updateRadialZones();
+            renderNotes();
+        }
+
+        function renderCategoryManager() {
+            const container = document.getElementById('category-list');
+            let html = '';
+            
+            customCategories.forEach((cat, index) => {
+                html += `
+                    <div style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #f9f9f9; border-radius: 8px; margin-bottom: 10px;">
+                        <input type="text" value="${cat.emoji}" maxlength="2" 
+                            onchange="updateCategoryField(${index}, 'emoji', this.value)"
+                            style="width: 45px; height: 45px; text-align: center; font-size: 24px; border: 1px solid #ddd; border-radius: 8px;">
+                        <input type="text" value="${cat.name}" 
+                            onchange="updateCategoryField(${index}, 'name', this.value)"
+                            placeholder="Category name"
+                            style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 15px;">
+                        <input type="color" value="${cat.color}" 
+                            onchange="updateCategoryField(${index}, 'color', this.value)"
+                            style="width: 45px; height: 45px; border: none; border-radius: 8px; cursor: pointer;">
+                        <button onclick="deleteCategory(${index})" 
+                            ${customCategories.length <= MIN_CATEGORIES ? 'disabled' : ''}
+                            style="width: 45px; height: 45px; background: ${customCategories.length <= MIN_CATEGORIES ? '#ccc' : '#FF3B30'}; color: white; border: none; border-radius: 8px; cursor: ${customCategories.length <= MIN_CATEGORIES ? 'not-allowed' : 'pointer'}; font-size: 20px;">×</button>
+                    </div>
+                `;
+            });
+            
+            if (customCategories.length < MAX_CATEGORIES) {
+                html += `
+                    <button onclick="addCategory()" 
+                        style="width: 100%; padding: 14px; background: #007AFF; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; margin-top: 8px;">
+                        + Add Category (${customCategories.length}/${MAX_CATEGORIES})
+                    </button>
+                `;
+            } else {
+                html += `<p style="text-align: center; color: #999; margin-top: 12px; font-size: 14px;">Maximum ${MAX_CATEGORIES} categories reached</p>`;
+            }
+            
+            container.innerHTML = html;
+        }
+
+        function addCategory() {
+            if (customCategories.length >= MAX_CATEGORIES) {
+                showToast(`Maximum ${MAX_CATEGORIES} categories`);
+                return;
+            }
+            
+            customCategories.push({
+                id: 'category_' + Date.now(),
+                name: 'New Category',
+                emoji: '📝',
+                color: '#999999'
+            });
+            
+            saveCategories();
+            renderCategoryManager();
+            rebuildFilterTabs();
+        }
+
+        function updateCategoryField(index, field, value) {
+            if (field === 'name' && !value.trim()) {
+                showToast('Category name cannot be empty');
+                renderCategoryManager();
+                return;
+            }
+            
+            const oldId = customCategories[index].id;
+            customCategories[index][field] = value;
+            
+            saveCategories();
+            rebuildFilterTabs();
+            renderCategoryManager();
+        }
+
+        function deleteCategory(index) {
+            if (customCategories.length <= MIN_CATEGORIES) {
+                showToast(`Minimum ${MIN_CATEGORIES} category required`);
+                return;
+            }
+            
+            const cat = customCategories[index];
+            const affectedNotes = notes.filter(n => n.para === cat.id);
+            
+            if (affectedNotes.length > 0) {
+                const confirmed = confirm(`${affectedNotes.length} note(s) use this category. They will be moved to Unsorted. Continue?`);
+                if (!confirmed) return;
+                
+                // Move notes to unsorted
+                affectedNotes.forEach(note => {
+                    note.para = null;
+                });
+                localStorage.setItem('quickNotes', JSON.stringify(notes));
+            }
+            
+            customCategories.splice(index, 1);
+            saveCategories();
+            renderCategoryManager();
+            rebuildFilterTabs();
+            updateTabCounts();
+            renderNotes();
+        }
+
+        function saveCategories() {
+            localStorage.setItem('customCategories', JSON.stringify(customCategories));
+        }
+
+        function rebuildFilterTabs() {
+            // Rebuild the filter tabs HTML based on current categories
+            const tabsContainer = document.querySelector('.filter-tabs');
+            if (!tabsContainer) return;
+            
+            let html = `
+                <button class="filter-tab ${currentFilter === 'unsorted' ? 'active' : ''}" 
+                        onclick="setFilter('unsorted')">
+                    Unsorted <span class="unsorted-badge" id="unsorted-badge" style="display: none;">0</span>
+                </button>
+            `;
+            
+            customCategories.forEach(cat => {
+                html += `
+                    <button class="filter-tab ${currentFilter === cat.id ? 'active' : ''}" 
+                            onclick="setFilter('${cat.id}')">
+                        ${cat.emoji} ${cat.name}
+                    </button>
+                `;
+            });
+            
+            html += `
+                <button class="filter-tab ${currentFilter === 'archived' ? 'active' : ''}" 
+                        onclick="setFilter('archived')">
+                    Archived
+                </button>
+            `;
+            
+            tabsContainer.innerHTML = html;
+            updateTabCounts();
+        }
+
+        function newNoteFromArchive() {
+            closeArchive();
+        }
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Scroll the active tab into view
+            scrollActiveTabIntoView();
+            
+            renderNotes();
+        }
+
+        function toggleLockFilter(filter, element) {
+            if (lockedFilter === filter) {
+                // Unlock
+                lockedFilter = null;
+                localStorage.removeItem('lockedFilter');
+                element.classList.remove('locked');
+            } else {
+                // Lock this filter
+                lockedFilter = filter;
+                localStorage.setItem('lockedFilter', filter);
+                
+                // Remove lock from all tabs
+                document.querySelectorAll('.filter-tab').forEach(tab => {
+                    tab.classList.remove('locked');
+                });
+                element.classList.add('locked');
+            }
+        }
+
+        function startTabLongPress(e, filter) {
+            clearTabLongPress();
+            tabLongPressTimer = setTimeout(() => {
+                navigator.vibrate && navigator.vibrate(50);
+                toggleLockFilter(filter, e.target);
+            }, 700);
+        }
+
+        function clearTabLongPress() {
+            if (tabLongPressTimer) {
+                clearTimeout(tabLongPressTimer);
+                tabLongPressTimer = null;
+            }
+        }
+
+        function filterNotes() {
+            const searchInput = document.getElementById('search-input');
+            const clearBtn = document.getElementById('search-clear-btn');
+            const filterTabs = document.querySelector('.filter-tabs');
+            
+            // Show/hide clear button and tabs based on search
+            if (searchInput.value.trim()) {
+                clearBtn.style.display = 'flex';
+                // Hide tabs when searching with animation
+                filterTabs.classList.add('hidden');
+            } else {
+                clearBtn.style.display = 'none';
+                // Show tabs when not searching
+                filterTabs.classList.remove('hidden');
+            }
+            
+            renderNotes();
+        }
+
+        function clearSearch() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('search-clear-btn').style.display = 'none';
+            // Show tabs again when search is cleared
+            document.querySelector('.filter-tabs').classList.remove('hidden');
+            renderNotes();
+        }
+
+        function getCategoryDisplay(paraId) {
+            if (!paraId) return '';
+            const category = customCategories.find(c => c.id === paraId);
+            if (!category) return '';
+            return `${category.emoji} ${category.name}`;
+        }
+
+        function renderNotes() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
+            const container = document.getElementById('notes-list');
+            
+            let exactMatches = [];
+            let suggestedMatches = [];
+            
+            notes.forEach(note => {
+                // Skip archived notes unless viewing archived filter
+                if (note.archived && currentFilter !== 'archived') return;
+                
+                // Check filter match
+                let matchesFilter;
+                if (currentFilter === 'archived') {
+                    matchesFilter = note.archived === true;
+                } else if (currentFilter === 'unsorted') {
+                    matchesFilter = (!note.para || note.para === null) && !note.archived;
+                } else {
+                    matchesFilter = note.para === currentFilter && !note.archived;
+                }
+                
+                // If searching
+                if (searchTerm) {
+                    // Check exact match
+                    const exactMatch = note.text.toLowerCase().includes(searchTerm) ||
+                        (note.tags && note.tags.some(tag => tag.toLowerCase().includes(searchTerm)));
+                    
+                    if (exactMatch && !note.archived) {
+                        exactMatches.push(note);
+                    } else if (!note.archived) {
+                        // Check if AI would suggest this search term as a tag
+                        const aiSuggestions = generateTagSuggestions(note.text);
+                        if (aiSuggestions.some(tag => tag.toLowerCase().includes(searchTerm))) {
+                            suggestedMatches.push(note);
+                        }
+                    }
+                } else {
+                    // No search term - apply filter normally
+                    if (matchesFilter) {
+                        exactMatches.push(note);
+                    }
+                }
+            });
+
+            const totalResults = exactMatches.length + suggestedMatches.length;
+            
+            if (totalResults === 0) {
+                const emptyMessage = currentFilter === 'unsorted' 
+                    ? 'No unsorted notes! 🎉' 
+                    : 'No notes yet';
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📝</div>
+                        <div>${emptyMessage}</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            
+            // Render exact matches
+            if (exactMatches.length > 0) {
+                html += exactMatches.map((note) => {
+                    const actualIndex = notes.findIndex(n => n.id === note.id);
+                    const date = new Date(note.created);
+                    const dateStr = date.toLocaleDateString();
+                    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    
+                    const actionButton = note.archived 
+                        ? `<div class="swipe-action delete-action" onclick="permanentDeleteNote(${actualIndex})">Delete</div>`
+                        : `<div class="swipe-action archive-action" onclick="quickArchiveNote(${actualIndex})">Archive</div>`;
+                    
+                    return `
+                        <div class="swipeable-note-container" data-note-index="${actualIndex}">
+                            ${actionButton}
+                            <div class="note-card" 
+                                 data-note-index="${actualIndex}"
+                                 onmousedown="handleNoteClick(event, ${actualIndex})">
+                                <div class="note-preview">${escapeHtml(note.text)}</div>
+                                <div class="note-meta">
+                                    <div class="note-tags">
+                                        ${note.archived ? '<span class="para-badge" style="background: #E0E0E0; color: #666;">📦 Archived</span>' : ''}
+                                        ${note.para ? `<span class="para-badge ${note.para}">${getCategoryDisplay(note.para)}</span>` : ''}
+                                        ${note.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+                                    </div>
+                                    <span>${dateStr} ${timeStr}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            // Render suggested matches if searching
+            if (searchTerm && suggestedMatches.length > 0) {
+                html += `<div style="padding: 12px 10px 8px 10px; color: #999; font-size: 13px; font-weight: 500;">Suggested Matches</div>`;
+                
+                html += suggestedMatches.map((note) => {
+                    const actualIndex = notes.findIndex(n => n.id === note.id);
+                    const date = new Date(note.created);
+                    const dateStr = date.toLocaleDateString();
+                    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    
+                    const actionButton = note.archived 
+                        ? `<div class="swipe-action delete-action" onclick="permanentDeleteNote(${actualIndex})">Delete</div>`
+                        : `<div class="swipe-action archive-action" onclick="quickArchiveNote(${actualIndex})">Archive</div>`;
+                    
+                    return `
+                        <div class="swipeable-note-container" data-note-index="${actualIndex}" style="opacity: 0.7;">
+                            ${actionButton}
+                            <div class="note-card" 
+                                 data-note-index="${actualIndex}"
+                                 onmousedown="handleNoteClick(event, ${actualIndex})">
+                                <div class="note-preview">${escapeHtml(note.text)}</div>
+                                <div class="note-meta">
+                                    <div class="note-tags">
+                                        ${note.archived ? '<span class="para-badge" style="background: #E0E0E0; color: #666;">📦 Archived</span>' : ''}
+                                        ${note.para ? `<span class="para-badge ${note.para}">${getCategoryDisplay(note.para)}</span>` : ''}
+                                        ${note.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+                                    </div>
+                                    <span>${dateStr} ${timeStr}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            container.innerHTML = html;
+            
+            // Add touch event listeners to note cards
+            setupNoteTouchListeners();
+        }
+
+        function handleNoteClick(e, index) {
+            // Only open modal if we're not in the middle of a radial gesture
+            if (!radialMenuActive) {
+                openEditModal(index);
+            }
+        }
+
+        function resetAllSwipes() {
+            document.querySelectorAll('.note-card').forEach(card => {
+                card.style.transform = 'translateX(0)';
+            });
+        }
+
+        function setupNoteTouchListeners() {
+            const containers = document.querySelectorAll('.swipeable-note-container');
+            
+            containers.forEach(container => {
+                const card = container.querySelector('.note-card');
+                let startX = 0;
+                let currentX = 0;
+                let isSwiping = false;
+                
+                card.addEventListener('touchstart', (e) => {
+                    // Reset other swiped notes
+                    resetAllSwipes();
+                    
+                    startX = e.touches[0].clientX;
+                    currentX = 0;
+                    isSwiping = false;
+                    const noteIndex = parseInt(card.getAttribute('data-note-index'));
+                    radialNoteIndex = noteIndex;
+                    
+                    // Start long press timer for radial menu
+                    longPressTimer = setTimeout(() => {
+                        if (!isSwiping) {
+                            const touch = e.touches[0];
+                            showRadialMenu(touch.clientX, touch.clientY);
+                        }
+                    }, 300);
+                });
+                
+                card.addEventListener('touchmove', (e) => {
+                    if (radialMenuActive) {
+                        e.preventDefault();
+                        const touch = e.touches[0];
+                        updateRadialHighlight(touch.clientX, touch.clientY);
+                        return;
+                    }
+                    
+                    const touch = e.touches[0];
+                    currentX = touch.clientX - startX;
+                    
+                    // Only allow left swipe
+                    if (currentX < -10) {
+                        isSwiping = true;
+                        clearTimeout(longPressTimer);
+                        e.preventDefault();
+                        
+                        // Limit swipe to action button width
+                        const translateX = Math.max(currentX, -80);
+                        card.style.transform = `translateX(${translateX}px)`;
+                    }
+                });
+                
+                card.addEventListener('touchend', (e) => {
+                    clearTimeout(longPressTimer);
+                    
+                    if (radialMenuActive) {
+                        applyRadialSelection();
+                        return;
+                    }
+                    
+                    if (isSwiping) {
+                        // If swiped more than 40px, snap to revealed state
+                        if (currentX < -40) {
+                            card.style.transform = 'translateX(-80px)';
+                        } else {
+                            card.style.transform = 'translateX(0)';
+                        }
+                    } else if (!longPressTriggered) {
+                        // Normal tap - open modal
+                        const noteIndex = parseInt(card.getAttribute('data-note-index'));
+                        openEditModal(noteIndex);
+                    }
+                    
+                    isSwiping = false;
+                });
+                
+                card.addEventListener('touchcancel', () => {
+                    clearTimeout(longPressTimer);
+                    card.style.transform = 'translateX(0)';
+                    isSwiping = false;
+                });
+            });
+            
+            // Also reset swipes when tapping empty areas
+            document.getElementById('notes-list').addEventListener('touchstart', (e) => {
+                if (!e.target.closest('.note-card') && !e.target.closest('.swipe-action')) {
+                    resetAllSwipes();
+                }
+            });
+        }
+
+        function showRadialMenu(x, y) {
+            console.log('showRadialMenu called');
+            radialMenuActive = true;
+            
+            // Vibration feedback
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
+            }
+            
+            // Remove press indicator
+            const indicator = document.getElementById('press-indicator');
+            if (indicator) indicator.remove();
+            
+            // Show overlay and radial menu
+            document.getElementById('swipe-overlay').classList.add('active');
+            const radialMenu = document.getElementById('radial-menu');
+            radialMenu.style.display = 'block';
+            
+            // Generate category buttons in circle
+            buildRadialCategories();
+            
+            // Force repaint
+            radialMenu.offsetHeight;
+        }
+
+        function buildRadialCategories() {
+            const container = document.getElementById('radial-categories');
+            container.innerHTML = '';
+            
+            const numCategories = customCategories.length;
+            const radius = 140; // Distance from center
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+            
+            // Calculate angle between each category
+            const angleStep = (2 * Math.PI) / numCategories;
+            const startAngle = -Math.PI / 2; // Start at top
+            
+            customCategories.forEach((category, index) => {
+                const angle = startAngle + (angleStep * index);
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+                
+                const categoryEl = document.createElement('div');
+                categoryEl.className = 'radial-category';
+                categoryEl.style.left = x + 'px';
+                categoryEl.style.top = y + 'px';
+                categoryEl.style.animationDelay = (index * 0.05) + 's';
+                categoryEl.dataset.categoryId = category.id;
+                categoryEl.dataset.index = index;
+                
+                categoryEl.innerHTML = `
+                    <div class="radial-category-emoji">${category.emoji}</div>
+                    <div class="radial-category-name">${category.name}</div>
+                `;
+                
+                container.appendChild(categoryEl);
+            });
+        }
+
+        function updateRadialHighlight(touchX, touchY) {
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+            
+            const deltaX = touchX - centerX;
+            const deltaY = touchY - centerY;
+            const distanceFromCenter = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            
+            // Cancel zone radius (inside center circle)
+            const cancelRadius = 50;
+            
+            // Calculate angle from center
+            let angle = Math.atan2(deltaY, deltaX);
+            
+            // Update arrow direction
+            const arrow = document.getElementById('radial-arrow');
+            const arrowDegrees = (angle * 180 / Math.PI) + 90; // Adjust for arrow pointing up by default
+            arrow.style.transform = `rotate(${arrowDegrees}deg)`;
+            
+            // Clear all highlights
+            document.querySelectorAll('.radial-category').forEach(cat => {
+                cat.classList.remove('highlight');
+            });
+            
+            if (distanceFromCenter < cancelRadius) {
+                // In cancel zone
+                window.currentSwipeZone = null;
+            } else {
+                // Find closest category
+                const categories = document.querySelectorAll('.radial-category');
+                let closestCategory = null;
+                let closestAngleDiff = Infinity;
+                
+                const numCategories = categories.length;
+                const angleStep = (2 * Math.PI) / numCategories;
+                const startAngle = -Math.PI / 2;
+                
+                categories.forEach((cat, index) => {
+                    const catAngle = startAngle + (angleStep * index);
+                    let angleDiff = Math.abs(angle - catAngle);
+                    
+                    // Handle wraparound
+                    if (angleDiff > Math.PI) {
+                        angleDiff = 2 * Math.PI - angleDiff;
+                    }
+                    
+                    if (angleDiff < closestAngleDiff) {
+                        closestAngleDiff = angleDiff;
+                        closestCategory = cat;
+                    }
+                });
+                
+                if (closestCategory) {
+                    closestCategory.classList.add('highlight');
+                    window.currentSwipeZone = closestCategory.dataset.categoryId;
+                }
+            }
+        }
+
+        function applyRadialSelection() {
+            if (window.currentSwipeZone && radialNoteIndex !== null) {
+                notes[radialNoteIndex].para = window.currentSwipeZone;
+                localStorage.setItem('quickNotes', JSON.stringify(notes));
+                updateUnsortedBadge();
+                updateTabCounts();
+                renderNotes();
+                
+                // Success haptic pattern: double vibration
+                if (navigator.vibrate) {
+                    navigator.vibrate([50, 50, 50]);
+                }
+            }
+            
+            hideRadialMenu();
+        }
+
+        function hideRadialMenu() {
+            radialMenuActive = false;
+            radialNoteIndex = null;
+            window.currentSwipeZone = null;
+            
+            document.getElementById('swipe-overlay').classList.remove('active');
+            document.getElementById('radial-menu').style.display = 'none';
+            
+            // Clear categories
+            document.getElementById('radial-categories').innerHTML = '';
+        }
+
+        function openEditModal(index) {
+            currentNoteIndex = index;
+            const note = notes[index];
+            
+            document.getElementById('modal-note-edit').value = note.text;
+            
+            // Display timestamp
+            const date = new Date(note.created);
+            const dateStr = date.toLocaleDateString();
+            const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('note-timestamp').textContent = `Created: ${dateStr} at ${timeStr}`;
+            
+            // Normalize existing tags when loading
+            selectedTags = new Set((note.tags || []).map(t => t.toLowerCase().trim()));
+            selectedPara = note.para;
+            
+            // Render category options dynamically
+            renderCategoryOptions();
+            
+            // Update inline tags display
+            renderInlineTags();
+            
+            // Update quick tag suggestions
+            renderQuickTagSuggestions();
+            
+            // Update category display based on whether one is selected
+            if (selectedPara) {
+                // Show collapsed view with selected category
+                const categoryDisplay = document.getElementById('selected-category-display');
+                const categoryText = document.getElementById('selected-category-text');
+                const badge = categoryDisplay.querySelector('.selected-category-badge');
+                
+                const selectedCategory = customCategories.find(c => c.id === selectedPara);
+                if (selectedCategory) {
+                    categoryText.textContent = `${selectedCategory.emoji} ${selectedCategory.name}`;
+                    badge.className = 'selected-category-badge ' + selectedPara;
+                    categoryDisplay.style.display = 'block';
+                    document.getElementById('category-options').style.display = 'none';
+                } else {
+                    // Category no longer exists, reset to unsorted
+                    selectedPara = null;
+                    document.getElementById('selected-category-display').style.display = 'none';
+                    document.getElementById('category-options').style.display = 'grid';
+                }
+            } else {
+                // Show full options if no category selected
+                document.getElementById('selected-category-display').style.display = 'none';
+                document.getElementById('category-options').style.display = 'grid';
+            }
+            
+            updateParaSelection();
+            
+            // Update archive button text and delete button visibility
+            const archiveBtn = document.getElementById('archive-toggle-btn');
+            const deleteBtn = document.getElementById('delete-btn');
+            if (note.archived) {
+                archiveBtn.textContent = 'Unarchive Note';
+                archiveBtn.style.background = '#4CAF50';
+                deleteBtn.style.display = 'inline-block';
+            } else {
+                archiveBtn.textContent = 'Archive Note';
+                archiveBtn.style.background = '#FF3B30';
+                deleteBtn.style.display = 'none';
+            }
+            
+            document.getElementById('edit-modal').style.display = 'block';
+            
+            // Scroll modal content to top
+            const modalContent = document.querySelector('.modal-content');
+            if (modalContent) {
+                modalContent.scrollTop = 0;
+            }
+        }
+
+        function renderCategoryOptions() {
+            const container = document.getElementById('category-options');
+            let html = '';
+            
+            customCategories.forEach(cat => {
+                html += `
+                    <div class="para-option" onclick="selectParaAndCollapse('${cat.id}')">
+                        <div class="para-option-title">${cat.emoji} ${cat.name}</div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        let tagDeleteMode = false;
+
+        function renderInlineTags() {
+            const container = document.getElementById('inline-tags');
+            container.innerHTML = '';
+            
+            // Add existing tags
+            selectedTags.forEach(tag => {
+                const tagWrapper = document.createElement('div');
+                tagWrapper.style.position = 'relative';
+                tagWrapper.style.display = 'inline-block';
+                
+                const tagEl = document.createElement('span');
+                tagEl.className = 'inline-tag' + (tagDeleteMode ? ' tag-wiggle' : '');
+                tagEl.textContent = tag;
+                
+                // Add delete button if in delete mode
+                if (tagDeleteMode) {
+                    const deleteBtn = document.createElement('span');
+                    deleteBtn.className = 'tag-delete-btn';
+                    deleteBtn.textContent = '×';
+                    deleteBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        removeTag(tag);
+                    };
+                    tagWrapper.appendChild(deleteBtn);
+                }
+                
+                // Handle touch for both click and long-press
+                tagEl.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    startTagLongPress(e, tag);
+                }, { passive: false });
+                
+                tagEl.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    clearTagLongPress(e, tag);
+                }, { passive: false });
+                
+                tagWrapper.appendChild(tagEl);
+                container.appendChild(tagWrapper);
+            });
+        }
+
+        function renderQuickTagSuggestions() {
+            const note = notes[currentNoteIndex];
+            const aiSuggestions = generateTagSuggestions(note.text);
+            
+            // Get all existing tags and count frequency
+            const tagFrequency = {};
+            notes.forEach(n => {
+                if (n.tags) {
+                    n.tags.forEach(t => {
+                        const normalized = t.toLowerCase().trim();
+                        tagFrequency[normalized] = (tagFrequency[normalized] || 0) + 1;
+                    });
+                }
+            });
+            
+            // Get top 5 most used tags
+            const topTags = Object.entries(tagFrequency)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5)
+                .map(([tag]) => tag);
+            
+            // Combine AI suggestions and top tags
+            const quickTags = new Set([...aiSuggestions, ...topTags]);
+            
+            // Sort: AI first, then by frequency
+            const sortedQuickTags = Array.from(quickTags)
+                .filter(tag => !selectedTags.has(tag)) // Don't show already selected tags
+                .sort((a, b) => {
+                    const aIsAI = aiSuggestions.includes(a);
+                    const bIsAI = aiSuggestions.includes(b);
+                    if (aIsAI && !bIsAI) return -1;
+                    if (!aIsAI && bIsAI) return 1;
+                    return (tagFrequency[b] || 0) - (tagFrequency[a] || 0);
+                });
+            
+            const container = document.getElementById('quick-tag-suggestions');
+            
+            if (sortedQuickTags.length === 0) {
+                container.innerHTML = '<div style="color: #999; font-size: 13px; padding: 5px;">No suggestions - click "+ Add Tag" to create one</div>';
+            } else {
+                container.innerHTML = sortedQuickTags.map(tag => {
+                    const isAI = aiSuggestions.includes(tag);
+                    return `
+                        <button class="tag-suggestion ${isAI ? 'ai-suggested' : ''}"
+                                onclick="addQuickTag('${escapeHtml(tag)}')">
+                            ${escapeHtml(tag)}
+                        </button>
+                    `;
+                }).join('');
+            }
+        }
+
+        function addQuickTag(tag) {
+            selectedTags.add(tag.toLowerCase().trim());
+            renderInlineTags();
+            renderQuickTagSuggestions(); // Refresh to remove the tag from suggestions
+            autoSaveNote();
+        }
+
+        let tagLongPressTimer = null;
+        let tagToRemove = null;
+        let longPressTriggered = false;
+
+        function startTagLongPress(e, tag) {
+            e.preventDefault();
+            e.stopPropagation();
+            tagToRemove = tag;
+            longPressTriggered = false;
+            tagLongPressTimer = setTimeout(() => {
+                longPressTriggered = true;
+                navigator.vibrate && navigator.vibrate([50, 30, 50]); // Double vibrate
+                enterTagDeleteMode();
+                tagLongPressTimer = null;
+            }, 500); // 500ms for long press
+        }
+
+        function clearTagLongPress(e, tag) {
+            if (tagLongPressTimer) {
+                clearTimeout(tagLongPressTimer);
+                tagLongPressTimer = null;
+                
+                // Only navigate if it wasn't a long press and not in delete mode
+                if (!longPressTriggered && !tagDeleteMode) {
+                    viewTagNotes(tag);
+                }
+            }
+            longPressTriggered = false;
+        }
+
+        function enterTagDeleteMode() {
+            tagDeleteMode = true;
+            renderInlineTags();
+            showToast('Tap × to remove tags');
+            
+            // Add click listener to modal to exit on outside tap
+            const modal = document.querySelector('.modal-content');
+            if (modal) {
+                modal.addEventListener('click', handleModalClickForTagDelete);
+            }
+        }
+
+        function handleModalClickForTagDelete(e) {
+            // If clicking outside tags area and not on a tag or delete button, exit delete mode
+            if (!e.target.closest('.inline-tag') && !e.target.closest('.tag-delete-btn')) {
+                exitTagDeleteMode();
+            }
+        }
+
+        function exitTagDeleteMode() {
+            tagDeleteMode = false;
+            renderInlineTags();
+            
+            // Remove click listener
+            const modal = document.querySelector('.modal-content');
+            if (modal) {
+                modal.removeEventListener('click', handleModalClickForTagDelete);
+            }
+        }
+
+        function removeTag(tag) {
+            selectedTags.delete(tag);
+            renderInlineTags();
+            renderQuickTagSuggestions();
+            autoSaveNote();
+            
+            // Exit delete mode if no tags left
+            if (selectedTags.size === 0) {
+                exitTagDeleteMode();
+            }
+        }
+
+        function showTagPicker() {
+            const modal = document.getElementById('tag-picker-modal');
+            const note = notes[currentNoteIndex];
+            const aiSuggestions = generateTagSuggestions(note.text);
+            
+            // Get all existing tags and count frequency
+            const tagFrequency = {};
+            notes.forEach(n => {
+                if (n.tags) {
+                    n.tags.forEach(t => {
+                        const normalized = t.toLowerCase().trim();
+                        tagFrequency[normalized] = (tagFrequency[normalized] || 0) + 1;
+                    });
+                }
+            });
+            
+            // Get top 5 most used tags
+            const topTags = Object.entries(tagFrequency)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5)
+                .map(([tag]) => tag);
+            
+            // Combine AI suggestions, top tags, and currently selected tags (for display logic)
+            const priorityTags = new Set([...aiSuggestions, ...topTags]);
+            
+            // Get all other tags (for "show more")
+            const allOtherTags = Object.keys(tagFrequency).filter(tag => !priorityTags.has(tag));
+            
+            // Sort priority tags: AI suggestions first, then by frequency
+            const sortedPriorityTags = Array.from(priorityTags)
+                .filter(tag => !selectedTags.has(tag)) // Don't show already selected tags
+                .sort((a, b) => {
+                    const aIsAI = aiSuggestions.includes(a);
+                    const bIsAI = aiSuggestions.includes(b);
+                    if (aIsAI && !bIsAI) return -1;
+                    if (!aIsAI && bIsAI) return 1;
+                    return (tagFrequency[b] || 0) - (tagFrequency[a] || 0);
+                });
+            
+            const container = document.getElementById('tag-picker-suggestions');
+            container.innerHTML = sortedPriorityTags.map(tag => {
+                const isAI = aiSuggestions.includes(tag);
+                return `
+                    <button class="tag-suggestion ${isAI ? 'ai-suggested' : ''}"
+                            onclick="addTagFromSuggestion('${escapeHtml(tag)}')">
+                        ${escapeHtml(tag)}
+                    </button>
+                `;
+            }).join('');
+            
+            // Add "Show All Tags" button if there are more tags
+            const unselectedOtherTags = allOtherTags.filter(tag => !selectedTags.has(tag));
+            if (unselectedOtherTags.length > 0) {
+                container.innerHTML += `
+                    <button class="tag-suggestion" onclick="toggleAllTagsInPicker()" id="show-all-tags-picker-btn">
+                        + ${unselectedOtherTags.length} more
+                    </button>
+                `;
+            }
+            
+            // Store for "show more" functionality
+            window.allOtherTagsForPicker = unselectedOtherTags.sort();
+            window.showingAllTagsInPicker = false;
+            
+            modal.style.display = 'block';
+            document.getElementById('tag-picker-input').focus();
+        }
+
+        function toggleAllTagsInPicker() {
+            const container = document.getElementById('tag-picker-suggestions');
+            const note = notes[currentNoteIndex];
+            const aiSuggestions = generateTagSuggestions(note.text);
+            
+            if (!window.showingAllTagsInPicker) {
+                // Show all tags
+                window.showingAllTagsInPicker = true;
+                
+                // Get all tags
+                const allTags = new Set([...aiSuggestions]);
+                notes.forEach(n => {
+                    if (n.tags) {
+                        n.tags.forEach(tag => allTags.add(tag.toLowerCase().trim()));
+                    }
+                });
+                
+                const sortedAllTags = Array.from(allTags)
+                    .filter(tag => !selectedTags.has(tag))
+                    .sort((a, b) => {
+                        const aIsAI = aiSuggestions.includes(a);
+                        const bIsAI = aiSuggestions.includes(b);
+                        if (aIsAI && !bIsAI) return -1;
+                        if (!aIsAI && bIsAI) return 1;
+                        return a.localeCompare(b);
+                    });
+                
+                container.innerHTML = sortedAllTags.map(tag => {
+                    const isAI = aiSuggestions.includes(tag);
+                    return `
+                        <button class="tag-suggestion ${isAI ? 'ai-suggested' : ''}"
+                                onclick="addTagFromSuggestion('${escapeHtml(tag)}')">
+                            ${escapeHtml(tag)}
+                        </button>
+                    `;
+                }).join('');
+                
+                // Add "Show Less" button
+                container.innerHTML += `
+                    <button class="tag-suggestion" onclick="toggleAllTagsInPicker()">
+                        Show less
+                    </button>
+                `;
+            } else {
+                // Show priority tags again
+                window.showingAllTagsInPicker = false;
+                showTagPicker(); // Reload with priority view
+            }
+        }
+
+        function closeTagPicker(event) {
+            if (!event || event.target.id === 'tag-picker-modal') {
+                document.getElementById('tag-picker-modal').style.display = 'none';
+                document.getElementById('tag-picker-input').value = '';
+            }
+        }
+
+        function addTagFromSuggestion(tag) {
+            selectedTags.add(tag.toLowerCase().trim());
+            renderInlineTags();
+            autoSaveNote();
+            
+            // Refresh the picker to remove the newly added tag from suggestions
+            const wasShowingAll = window.showingAllTagsInPicker;
+            showTagPicker();
+            if (wasShowingAll) {
+                toggleAllTagsInPicker();
+            }
+        }
+
+        function addTagFromPicker() {
+            const input = document.getElementById('tag-picker-input');
+            const tag = input.value.trim();
+            
+            if (tag) {
+                const cleanTag = tag.toLowerCase().replace(/\s+/g, '-');
+                selectedTags.add(cleanTag);
+                renderInlineTags();
+                autoSaveNote();
+                input.value = '';
+                
+                // Refresh the picker
+                const wasShowingAll = window.showingAllTagsInPicker;
+                showTagPicker();
+                if (wasShowingAll) {
+                    toggleAllTagsInPicker();
+                }
+            }
+        }
+
+        function viewTagNotes(tag) {
+            // Auto-save current note
+            if (currentNoteIndex !== null) {
+                autoSaveNote();
+                previousView = currentNoteIndex;
+            } else {
+                previousView = returnToScreen; // Remember what screen we came from
+            }
+            
+            currentTagFilter = tag;
+            returnToScreen = 'tagview'; // Now the main screen is tag view
+            
+            // Close the detail modal
+            document.getElementById('edit-modal').style.display = 'none';
+            currentNoteIndex = null;
+            
+            // Don't hide archive screen - it will show through the overlay
+            
+            // Show tag view screen
+            const tagViewScreen = document.getElementById('tag-view-screen');
+            tagViewScreen.style.display = 'block';
+            document.getElementById('tag-view-title').textContent = `Tag: ${tag}`;
+            
+            renderTagView();
+        }
+
+        function renderTagView() {
+            const container = document.getElementById('tag-notes-list');
+            
+            // Filter notes by the current tag
+            const filtered = notes.filter(note => 
+                note.tags && note.tags.some(t => t.toLowerCase() === currentTagFilter.toLowerCase())
+            );
+            
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🏷️</div>
+                        <div>No notes with this tag</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map((note) => {
+                const actualIndex = notes.findIndex(n => n.id === note.id);
+                const date = new Date(note.created);
+                const dateStr = date.toLocaleDateString();
+                const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                return `
+                    <div class="note-card" 
+                         data-note-index="${actualIndex}"
+                         onclick="openDetailFromTagView(${actualIndex})">
+                        <div class="note-preview">${escapeHtml(note.text)}</div>
+                        <div class="note-meta">
+                            <div class="note-tags">
+                                ${note.para ? `<span class="para-badge ${note.para}">${getCategoryDisplay(note.para)}</span>` : ''}
+                                ${note.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+                            </div>
+                            <span>${dateStr} ${timeStr}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openDetailFromTagView(index) {
+            // When opening a note from tag view, closing it should go to main list
+            returnToScreen = 'archive';
+            previousView = 'tagview'; // But back button should return to tag view
+            
+            // Hide the tag view overlay while detail is open
+            document.getElementById('tag-view-screen').style.display = 'none';
+            
+            // Open the detail modal
+            openEditModal(index);
+        }
+
+        function backFromTagView() {
+            document.getElementById('tag-view-screen').style.display = 'none';
+            
+            if (typeof previousView === 'number') {
+                // Go back to the detail view of the previous note
+                // But remember to return to archive when that closes
+                returnToScreen = 'archive';
+                openEditModal(previousView);
+            } else {
+                // Go back to archive - it's already visible
+                returnToScreen = 'archive';
+            }
+            
+            previousView = null;
+            currentTagFilter = null;
+        }
+
+        function closeTagViewOverlay(event) {
+            if (event.target.id === 'tag-view-screen') {
+                backFromTagView();
+            }
+        }
+
+        function closeModal(event) {
+            if (!event || event.target.id === 'edit-modal') {
+                // Auto-save any text edits before closing
+                autoSaveNote();
+                document.getElementById('edit-modal').style.display = 'none';
+                currentNoteIndex = null;
+                
+                // Return to the appropriate screen
+                if (returnToScreen === 'tagview') {
+                    document.getElementById('tag-view-screen').style.display = 'block';
+                } else {
+                    // Archive screen should already be visible
+                    // Scroll active tab into view
+                    setTimeout(() => scrollActiveTabIntoView(), 100);
+                }
+            }
+        }
+
+        function closeModalWithSave() {
+            autoSaveNote();
+            exitTagDeleteMode(); // Exit delete mode when closing
+            document.getElementById('edit-modal').style.display = 'none';
+            currentNoteIndex = null;
+            
+            // Return to the appropriate screen
+            if (returnToScreen === 'tagview') {
+                document.getElementById('tag-view-screen').style.display = 'block';
+            } else {
+                // Archive screen should already be visible
+                // Scroll active tab into view
+                setTimeout(() => scrollActiveTabIntoView(), 100);
+            }
+        }
+
+        function generateTagSuggestions(text) {
+            const lower = text.toLowerCase();
+            const suggestions = new Set();
+            
+            // Learn from similar notes - find notes with similar keywords and suggest their tags
+            notes.forEach(note => {
+                if (note.tags && note.tags.length > 0 && note.text !== text) {
+                    const noteLower = note.text.toLowerCase();
+                    
+                    // Check for word overlap (simple similarity measure)
+                    const currentWords = lower.split(/\s+/).filter(w => w.length > 3);
+                    const noteWords = noteLower.split(/\s+/).filter(w => w.length > 3);
+                    const commonWords = currentWords.filter(w => noteWords.includes(w));
+                    
+                    // If there's significant overlap, suggest this note's tags
+                    if (commonWords.length >= 2) {
+                        note.tags.forEach(tag => suggestions.add(tag));
+                    }
+                }
+            });
+            
+            // Common patterns for a game designer
+            if (lower.includes('app') || lower.includes('application') || lower.includes('software')) {
+                suggestions.add('app-idea');
+            }
+            if (lower.includes('shop') || lower.includes('buy') || lower.includes('grocery') || lower.includes('store')) {
+                suggestions.add('shopping');
+            }
+            if (lower.includes('game') || lower.includes('play')) {
+                suggestions.add('game-idea');
+            }
+            if (lower.includes('mechanic') || lower.includes('system') || lower.includes('rule')) {
+                suggestions.add('game-mechanic');
+            }
+            if (lower.includes('remind') || lower.includes('don\'t forget') || lower.includes('remember')) {
+                suggestions.add('reminder');
+            }
+            if (lower.includes('work') || lower.includes('meeting') || lower.includes('deadline')) {
+                suggestions.add('work');
+            }
+            if (lower.includes('design') || lower.includes('prototype')) {
+                suggestions.add('design');
+            }
+            if (lower.includes('playtest') || lower.includes('feedback')) {
+                suggestions.add('playtesting');
+            }
+            if (lower.includes('story') || lower.includes('narrative') || lower.includes('character')) {
+                suggestions.add('narrative');
+            }
+            if (lower.includes('art') || lower.includes('visual')) {
+                suggestions.add('art');
+            }
+            if (lower.includes('balance') || lower.includes('math')) {
+                suggestions.add('balancing');
+            }
+            if (lower.includes('idea') || lower.includes('inspiration') || lower.includes('concept')) {
+                suggestions.add('idea');
+            }
+            if (lower.includes('read') || lower.includes('article') || lower.includes('book')) {
+                suggestions.add('reading');
+            }
+            if (lower.includes('note') || lower.includes('notes') || lower.includes('taking')) {
+                suggestions.add('app-idea');
+            }
+            if (lower.includes('tool') || lower.includes('utility')) {
+                suggestions.add('app-idea');
+            }
+
+            return Array.from(suggestions);
+        }
+
+        function renderTagSuggestions(aiSuggestions) {
+            const container = document.getElementById('tag-suggestions');
+            
+            // Get all unique tags from all notes and count frequency
+            const tagFrequency = {};
+            notes.forEach(note => {
+                if (note.tags) {
+                    note.tags.forEach(tag => {
+                        const normalized = tag.toLowerCase().trim();
+                        tagFrequency[normalized] = (tagFrequency[normalized] || 0) + 1;
+                    });
+                }
+            });
+            
+            // Get top 5 most used tags
+            const topTags = Object.entries(tagFrequency)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5)
+                .map(([tag]) => tag);
+            
+            // Combine AI suggestions, top tags, and currently selected tags
+            const priorityTags = new Set([...aiSuggestions, ...topTags, ...selectedTags]);
+            
+            // Get all other tags (for "show more")
+            const allOtherTags = Object.keys(tagFrequency).filter(tag => !priorityTags.has(tag));
+            
+            // Sort priority tags: AI suggestions first, then by frequency
+            const sortedPriorityTags = Array.from(priorityTags).sort((a, b) => {
+                const aIsAI = aiSuggestions.includes(a);
+                const bIsAI = aiSuggestions.includes(b);
+                if (aIsAI && !bIsAI) return -1;
+                if (!aIsAI && bIsAI) return 1;
+                return (tagFrequency[b] || 0) - (tagFrequency[a] || 0);
+            });
+            
+            // Render priority tags
+            container.innerHTML = sortedPriorityTags.map(tag => {
+                const isAI = aiSuggestions.includes(tag);
+                const isSelected = selectedTags.has(tag);
+                return `
+                    <button class="tag-suggestion ${isAI ? 'ai-suggested' : ''} ${isSelected ? 'selected' : ''}"
+                            onclick="toggleTag('${escapeHtml(tag)}')">
+                        ${escapeHtml(tag)}
+                    </button>
+                `;
+            }).join('');
+            
+            // Add "Show All Tags" button if there are more tags
+            if (allOtherTags.length > 0) {
+                container.innerHTML += `
+                    <button class="tag-suggestion" onclick="toggleAllTags()" id="show-all-tags-btn">
+                        + ${allOtherTags.length} more
+                    </button>
+                `;
+            }
+            
+            // Add custom tag option
+            container.innerHTML += `
+                <button class="tag-suggestion" onclick="addCustomTag()">
+                    + Custom
+                </button>
+            `;
+            
+            // Store all tags for "show more" functionality
+            window.allOtherTagsCache = allOtherTags.sort();
+            window.showingAllTags = false;
+        }
+
+        function toggleAllTags() {
+            const container = document.getElementById('tag-suggestions');
+            
+            if (!window.showingAllTags) {
+                // Show all tags
+                window.showingAllTags = true;
+                const note = notes[currentNoteIndex];
+                const aiSuggestions = generateTagSuggestions(note.text);
+                
+                // Get all tags
+                const allTags = new Set([...aiSuggestions, ...selectedTags]);
+                notes.forEach(n => {
+                    if (n.tags) {
+                        n.tags.forEach(tag => allTags.add(tag.toLowerCase().trim()));
+                    }
+                });
+                
+                const sortedAllTags = Array.from(allTags).sort((a, b) => {
+                    const aIsAI = aiSuggestions.includes(a);
+                    const bIsAI = aiSuggestions.includes(b);
+                    if (aIsAI && !bIsAI) return -1;
+                    if (!aIsAI && bIsAI) return 1;
+                    return a.localeCompare(b);
+                });
+                
+                container.innerHTML = sortedAllTags.map(tag => {
+                    const isAI = aiSuggestions.includes(tag);
+                    const isSelected = selectedTags.has(tag);
+                    return `
+                        <button class="tag-suggestion ${isAI ? 'ai-suggested' : ''} ${isSelected ? 'selected' : ''}"
+                                onclick="toggleTag('${escapeHtml(tag)}')">
+                            ${escapeHtml(tag)}
+                        </button>
+                    `;
+                }).join('');
+                
+                // Add "Show Less" button
+                container.innerHTML += `
+                    <button class="tag-suggestion" onclick="toggleAllTags()">
+                        Show less
+                    </button>
+                `;
+                
+                // Add custom tag option
+                container.innerHTML += `
+                    <button class="tag-suggestion" onclick="addCustomTag()">
+                        + Custom
+                    </button>
+                `;
+            } else {
+                // Show only priority tags again
+                window.showingAllTags = false;
+                const note = notes[currentNoteIndex];
+                const aiSuggestions = generateTagSuggestions(note.text);
+                renderTagSuggestions(aiSuggestions);
+            }
+        }
+
+        function selectPara(para) {
+            // Toggle: if clicking the same category, deselect it
+            if (selectedPara === para) {
+                selectedPara = null;
+            } else {
+                selectedPara = para;
+            }
+            updateParaSelection();
+            // Auto-save immediately
+            autoSaveNote();
+        }
+
+        function selectParaAndCollapse(para) {
+            console.log('selectParaAndCollapse called with:', para);
+            console.log('Current selectedPara:', selectedPara);
+            
+            // Toggle: if clicking the same category, deselect it
+            if (selectedPara === para) {
+                console.log('DESELECTING - setting to null');
+                selectedPara = null;
+                updateParaSelection(); // Update visual state immediately after changing selectedPara
+                // Hide the badge - don't show options grid
+                document.getElementById('selected-category-display').style.display = 'none';
+                // Actually, DO show the grid so they can pick a new one if they want
+                document.getElementById('category-options').style.display = 'grid';
+            } else {
+                console.log('SELECTING new category:', para);
+                selectedPara = para;
+                updateParaSelection(); // Update visual state immediately after changing selectedPara
+                
+                // Hide the options grid
+                document.getElementById('category-options').style.display = 'none';
+                
+                // Show the selected category badge
+                const categoryDisplay = document.getElementById('selected-category-display');
+                const categoryText = document.getElementById('selected-category-text');
+                const badge = categoryDisplay.querySelector('.selected-category-badge');
+                
+                // Set the text and color based on category
+                const selectedCategory = customCategories.find(c => c.id === para);
+                if (selectedCategory) {
+                    categoryText.textContent = `${selectedCategory.emoji} ${selectedCategory.name}`;
+                    badge.className = 'selected-category-badge ' + para;
+                    categoryDisplay.style.display = 'block';
+                }
+            }
+            
+            console.log('After update, selectedPara is:', selectedPara);
+            
+            // Auto-save the category change
+            autoSaveNote();
+        }
+
+        function expandCategoryOptions() {
+            console.log('expandCategoryOptions called, selectedPara before:', selectedPara);
+            // DON'T clear selectedPara - keep it so toggle logic works
+            document.getElementById('category-options').style.display = 'grid';
+            document.getElementById('selected-category-display').style.display = 'none';
+            updateParaSelection(); // Update visual state to show which is selected
+            console.log('expandCategoryOptions done, selectedPara still:', selectedPara);
+        }
+
+        function deselectCategory() {
+            console.log('deselectCategory called - removing category');
+            selectedPara = null;
+            document.getElementById('selected-category-display').style.display = 'none';
+            document.getElementById('category-options').style.display = 'grid';
+            updateParaSelection();
+            autoSaveNote(); // Save immediately
+        }
+
+        function autoSaveNote() {
+            if (currentNoteIndex !== null && currentNoteIndex !== undefined) {
+                const editedText = document.getElementById('modal-note-edit').value.trim();
+                if (editedText) {
+                    notes[currentNoteIndex].text = editedText;
+                    notes[currentNoteIndex].tags = Array.from(selectedTags);
+                    notes[currentNoteIndex].para = selectedPara; // This can be null
+                    localStorage.setItem('quickNotes', JSON.stringify(notes));
+                    updateUnsortedBadge();
+                    updateTabCounts();
+                    renderNotes(); // Just update the list, don't switch tabs
+                }
+            }
+        }
+
+        function updateParaSelection() {
+            document.querySelectorAll('.para-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            if (selectedPara) {
+                // Look for buttons that call selectParaAndCollapse with this para value
+                document.querySelector(`.para-option[onclick="selectParaAndCollapse('${selectedPara}')"]`)?.classList.add('selected');
+            }
+        }
+
+        function saveEdits() {
+            if (currentNoteIndex !== null) {
+                const editedText = document.getElementById('modal-note-edit').value.trim();
+                if (editedText) {
+                    notes[currentNoteIndex].text = editedText;
+                    notes[currentNoteIndex].tags = Array.from(selectedTags);
+                    notes[currentNoteIndex].para = selectedPara;
+                    localStorage.setItem('quickNotes', JSON.stringify(notes));
+                    updateUnsortedBadge();
+                    renderNotes();
+                    closeModal();
+                }
+            }
+        }
+
+        function quickArchiveNote(index) {
+            if (index === null || index === undefined) return;
+            notes[index].archived = true;
+            localStorage.setItem('quickNotes', JSON.stringify(notes));
+            updateUnsortedBadge();
+            updateTabCounts();
+            renderNotes();
+            showToast('Note archived');
+        }
+
+        function permanentDeleteNote(index) {
+            if (index === null || index === undefined) return;
+            notes.splice(index, 1);
+            localStorage.setItem('quickNotes', JSON.stringify(notes));
+            updateUnsortedBadge();
+            updateTabCounts();
+            renderNotes();
+            showToast('Note deleted');
+        }
+
+        function toggleArchiveNote() {
+            if (currentNoteIndex === null) return;
+            
+            const note = notes[currentNoteIndex];
+            const archiveBtn = document.getElementById('archive-toggle-btn');
+            const deleteBtn = document.getElementById('delete-btn');
+            
+            // Toggle archived state
+            note.archived = !note.archived;
+            
+            // Update button appearance immediately
+            if (note.archived) {
+                archiveBtn.textContent = '✓ Archived';
+                archiveBtn.style.background = '#666';
+                archiveBtn.style.opacity = '0.7';
+                
+                // After a moment, show unarchive option and delete button
+                setTimeout(() => {
+                    archiveBtn.textContent = 'Unarchive Note';
+                    archiveBtn.style.background = '#4CAF50';
+                    archiveBtn.style.opacity = '1';
+                    deleteBtn.style.display = 'inline-block';
+                }, 1000);
+            } else {
+                archiveBtn.textContent = '✓ Unarchived';
+                archiveBtn.style.background = '#4CAF50';
+                archiveBtn.style.opacity = '0.7';
+                
+                // After a moment, show archive option again and hide delete
+                setTimeout(() => {
+                    archiveBtn.textContent = 'Archive Note';
+                    archiveBtn.style.background = '#FF3B30';
+                    archiveBtn.style.opacity = '1';
+                    deleteBtn.style.display = 'none';
+                }, 1000);
+            }
+            
+            // Save to storage
+            localStorage.setItem('quickNotes', JSON.stringify(notes));
+            updateUnsortedBadge();
+            renderNotes();
+        }
+
+        let deleteAnimationFrame = null;
+        let deleteHoldStartTime = 0;
+        const DELETE_HOLD_DURATION = 2000;
+
+        function startDeleteHold(e) {
+            e.preventDefault();
+            const deleteProgress = document.getElementById('delete-progress');
+            const deleteBtnText = document.getElementById('delete-btn-text');
+            
+            deleteHoldStartTime = Date.now();
+            deleteBtnText.textContent = 'Keep Holding...';
+            
+            const updateProgress = () => {
+                const elapsed = Date.now() - deleteHoldStartTime;
+                const progress = Math.min((elapsed / DELETE_HOLD_DURATION) * 100, 100);
+                deleteProgress.style.width = progress + '%';
+                
+                if (progress >= 100) {
+                    deleteProgress.style.width = '0%';
+                    deleteBtnText.textContent = 'Hold to Delete';
+                    executePermanentDelete();
+                } else {
+                    deleteAnimationFrame = requestAnimationFrame(updateProgress);
+                }
+            };
+            
+            deleteAnimationFrame = requestAnimationFrame(updateProgress);
+        }
+
+        function cancelDeleteHold() {
+            if (deleteAnimationFrame) {
+                cancelAnimationFrame(deleteAnimationFrame);
+            }
+            const deleteProgress = document.getElementById('delete-progress');
+            const deleteBtnText = document.getElementById('delete-btn-text');
+            if (deleteProgress) deleteProgress.style.width = '0%';
+            if (deleteBtnText) deleteBtnText.textContent = 'Hold to Delete';
+        }
+
+        function executePermanentDelete() {
+            if (currentNoteIndex === null || currentNoteIndex === undefined) {
+                return;
+            }
+            
+            // Success haptic
+            if (navigator.vibrate) {
+                navigator.vibrate([50, 50, 50]);
+            }
+            
+            notes.splice(currentNoteIndex, 1);
+            localStorage.setItem('quickNotes', JSON.stringify(notes));
+            updateUnsortedBadge();
+            updateTabCounts();
+            renderNotes();
+            document.getElementById('edit-modal').style.display = 'none';
+            currentNoteIndex = null;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function addCustomTag() {
+            const container = document.getElementById('custom-tag-container');
+            const input = document.getElementById('custom-tag-input');
+            container.classList.add('active');
+            input.focus();
+        }
+
+        function confirmCustomTag() {
+            const input = document.getElementById('custom-tag-input');
+            const tag = input.value.trim();
+            
+            if (tag) {
+                const cleanTag = tag.toLowerCase().replace(/\s+/g, '-');
+                selectedTags.add(cleanTag);
+                const note = notes[currentNoteIndex];
+                const aiSuggestions = generateTagSuggestions(note.text);
+                renderTagSuggestions(aiSuggestions);
+                
+                // Reset input
+                input.value = '';
+                document.getElementById('custom-tag-container').classList.remove('active');
+                
+                // Auto-save when custom tag added
+                autoSaveNote();
+            }
+        }
+
+        function toggleTag(tag) {
+            const normalizedTag = tag.toLowerCase().trim();
+            if (selectedTags.has(normalizedTag)) {
+                selectedTags.delete(normalizedTag);
+            } else {
+                selectedTags.add(normalizedTag);
+            }
+            
+            const note = notes[currentNoteIndex];
+            const aiSuggestions = generateTagSuggestions(note.text);
+            renderTagSuggestions(aiSuggestions);
+            
+            // Auto-save when tags change
+            autoSaveNote();
+        }
+
+        // Auto-focus on note input when page loads
+        document.getElementById('note-input').focus();
+
+        // Handle Enter key with Cmd/Ctrl to save quickly
+        document.getElementById('note-input').addEventListener('keydown', function(e) {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                saveNote();
+            }
+        });
+
+        // Handle Enter key in custom tag input
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize dynamic categories
+            rebuildFilterTabs();
+            updateTabCounts();
+            updateUnsortedBadge();
+            
+            const customTagInput = document.getElementById('custom-tag-input');
+            if (customTagInput) {
+                customTagInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        confirmCustomTag();
+                    }
+                });
+            }
+        });
+
+        // Register service worker for PWA functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+    <!-- Category Manager Modal -->
+    <div id="category-manager-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 3000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto;">
+            <div style="padding: 20px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 style="margin: 0; font-size: 18px;">Manage Categories</h3>
+                    <p style="margin: 4px 0 0 0; font-size: 13px; color: #666;">Min 1, Max 6 categories</p>
+                </div>
+                <button onclick="closeCategoryManager()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #666;">×</button>
+            </div>
+            <div id="category-list" style="padding: 16px;"></div>
+        </div>
+    </div>
+
+</body>
+</html>

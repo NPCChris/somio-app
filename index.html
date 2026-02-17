@@ -1426,43 +1426,9 @@
         }
 
         function updateTabCounts() {
-            const tabs = document.querySelectorAll('.filter-tab');
-            const counts = {
-                'active': notes.filter(n => n.para === 'active' && !n.archived).length,
-                'ideas': notes.filter(n => n.para === 'ideas' && !n.archived).length,
-                'reference': notes.filter(n => n.para === 'reference' && !n.archived).length,
-                'someday': notes.filter(n => n.para === 'someday' && !n.archived).length,
-                'archived': notes.filter(n => n.archived === true).length
-            };
-            
-            const filterMap = {
-                'unsorted': 0,
-                'active': 1,
-                'ideas': 2,
-                'reference': 3,
-                'someday': 4,
-                'archived': 5
-            };
-            
-            // Add counts to category tabs (not Unsorted which has special badge)
-            ['active', 'ideas', 'reference', 'someday', 'archived'].forEach(category => {
-                const tab = tabs[filterMap[category]];
-                if (tab) {
-                    // Remove existing count
-                    const existingCount = tab.querySelector('.tab-count');
-                    if (existingCount) {
-                        existingCount.remove();
-                    }
-                    
-                    // Add new count if > 0
-                    if (counts[category] > 0) {
-                        const countSpan = document.createElement('span');
-                        countSpan.className = 'tab-count';
-                        countSpan.textContent = `(${counts[category]})`;
-                        tab.appendChild(countSpan);
-                    }
-                }
-            });
+            // Simply rebuild the entire tab bar with current counts
+            rebuildFilterTabs();
+        }
         }
 
         function closeArchive() {
@@ -1668,13 +1634,16 @@
             
             customCategories.forEach((cat, index) => {
                 html += `
-                    <div class="category-item" draggable="true" 
-                        ondragstart="handleDragStart(event, ${index})" 
-                        ondragover="handleDragOver(event)" 
-                        ondrop="handleDrop(event, ${index})"
-                        ondragend="handleDragEnd(event)"
-                        style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #f9f9f9; border-radius: 8px; margin-bottom: 10px; cursor: move;">
-                        <div style="font-size: 20px; color: #999; cursor: grab; padding: 0 5px;">⋮⋮</div>
+                    <div class="category-item" 
+                        style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #f9f9f9; border-radius: 8px; margin-bottom: 10px;">
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <button onclick="moveCategoryUp(${index})" 
+                                ${index === 0 ? 'disabled' : ''}
+                                style="width: 28px; height: 22px; background: ${index === 0 ? '#ddd' : '#007AFF'}; color: white; border: none; border-radius: 4px; cursor: ${index === 0 ? 'not-allowed' : 'pointer'}; font-size: 14px; padding: 0;">▲</button>
+                            <button onclick="moveCategoryDown(${index})" 
+                                ${index === customCategories.length - 1 ? 'disabled' : ''}
+                                style="width: 28px; height: 22px; background: ${index === customCategories.length - 1 ? '#ddd' : '#007AFF'}; color: white; border: none; border-radius: 4px; cursor: ${index === customCategories.length - 1 ? 'not-allowed' : 'pointer'}; font-size: 14px; padding: 0;">▼</button>
+                        </div>
                         <input type="text" value="${cat.emoji}" maxlength="2" 
                             onchange="updateCategoryField(${index}, 'emoji', this.value)"
                             style="width: 45px; height: 45px; text-align: center; font-size: 24px; border: 1px solid #ddd; border-radius: 8px;">
@@ -1703,44 +1672,35 @@
                 html += `<p style="text-align: center; color: #999; margin-top: 12px; font-size: 14px;">Maximum ${MAX_CATEGORIES} categories reached</p>`;
             }
             
-            html += `<p style="text-align: center; color: #666; margin-top: 16px; font-size: 13px;">💡 Drag categories to reorder tabs</p>`;
+            html += `<p style="text-align: center; color: #666; margin-top: 16px; font-size: 13px;">💡 Use ▲ ▼ buttons to reorder tabs</p>`;
             
             container.innerHTML = html;
         }
 
-        let draggedIndex = null;
-
-        function handleDragStart(e, index) {
-            draggedIndex = index;
-            e.target.style.opacity = '0.4';
-        }
-
-        function handleDragOver(e) {
-            e.preventDefault();
-            return false;
-        }
-
-        function handleDrop(e, dropIndex) {
-            e.preventDefault();
+        function moveCategoryUp(index) {
+            if (index === 0) return;
             
-            if (draggedIndex === null || draggedIndex === dropIndex) {
-                return;
-            }
-            
-            // Reorder array
-            const item = customCategories.splice(draggedIndex, 1)[0];
-            customCategories.splice(dropIndex, 0, item);
+            // Swap with previous
+            const temp = customCategories[index];
+            customCategories[index] = customCategories[index - 1];
+            customCategories[index - 1] = temp;
             
             saveCategories();
             renderCategoryManager();
             rebuildFilterTabs();
-            
-            draggedIndex = null;
         }
 
-        function handleDragEnd(e) {
-            e.target.style.opacity = '1';
-            draggedIndex = null;
+        function moveCategoryDown(index) {
+            if (index === customCategories.length - 1) return;
+            
+            // Swap with next
+            const temp = customCategories[index];
+            customCategories[index] = customCategories[index + 1];
+            customCategories[index + 1] = temp;
+            
+            saveCategories();
+            renderCategoryManager();
+            rebuildFilterTabs();
         }
 
         function addCategory() {
@@ -1829,13 +1789,16 @@
             }
             
             customCategories.forEach(cat => {
+                const catCount = notes.filter(n => n.para === cat.id && !n.archived).length;
                 html += `
                     <button class="filter-tab ${currentFilter === cat.id ? 'active' : ''}" 
                             onclick="setFilter('${cat.id}')">
-                        ${cat.emoji} ${cat.name}
+                        ${cat.emoji} ${cat.name}${catCount > 0 ? ` <span class="tab-count">${catCount}</span>` : ''}
                     </button>
                 `;
             });
+            
+            const archivedCount = notes.filter(n => n.archived).length;
             
             html += `
                 <button class="filter-tab ${currentFilter === 'widgets' ? 'active' : ''}" 
@@ -1844,7 +1807,7 @@
                 </button>
                 <button class="filter-tab ${currentFilter === 'archived' ? 'active' : ''}" 
                         onclick="setFilter('archived')">
-                    📦 Archived
+                    📦 Archived${archivedCount > 0 ? ` <span class="tab-count">${archivedCount}</span>` : ''}
                 </button>
             `;
             
@@ -2328,8 +2291,24 @@
             
             const numCategories = customCategories.length;
             const radius = 140; // Distance from center
-            const centerX = window.radialMenuCenterX || window.innerWidth / 2;
-            const centerY = window.radialMenuCenterY || window.innerHeight / 2;
+            let centerX = window.radialMenuCenterX || window.innerWidth / 2;
+            let centerY = window.radialMenuCenterY || window.innerHeight / 2;
+            
+            // Keep center point within safe bounds (away from edges)
+            const margin = 160; // Enough space for buttons + some padding
+            centerX = Math.max(margin, Math.min(window.innerWidth - margin, centerX));
+            centerY = Math.max(margin, Math.min(window.innerHeight - margin, centerY));
+            
+            // Update stored center (in case we adjusted it)
+            window.radialMenuCenterX = centerX;
+            window.radialMenuCenterY = centerY;
+            
+            // Position the center dead zone at finger location
+            const centerElement = document.getElementById('radial-center');
+            if (centerElement) {
+                centerElement.style.left = centerX + 'px';
+                centerElement.style.top = centerY + 'px';
+            }
             
             // Calculate angle between each category
             const angleStep = (2 * Math.PI) / numCategories;

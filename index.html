@@ -1266,7 +1266,27 @@
         const MIN_CATEGORIES = 1;
         const MAX_CATEGORIES = 6;
         
-        let currentFilter = 'unsorted';
+        // Smart default tab selection
+        function getDefaultFilter() {
+            // Check if inbox has notes
+            const inboxCount = notes.filter(n => (!n.para || n.para === null) && !n.archived).length;
+            if (inboxCount > 0) {
+                return 'unsorted'; // inbox
+            }
+            
+            // Find first category with notes (in order)
+            for (const cat of customCategories) {
+                const catCount = notes.filter(n => n.para === cat.id && !n.archived).length;
+                if (catCount > 0) {
+                    return cat.id;
+                }
+            }
+            
+            // No notes anywhere - default to first category
+            return customCategories[0]?.id || 'unsorted';
+        }
+        
+        let currentFilter = getDefaultFilter();
         let currentNoteIndex = null;
         let selectedTags = new Set();
         let selectedPara = null;
@@ -1401,22 +1421,8 @@
         }
 
         function updateUnsortedBadge() {
-            const unsortedCount = notes.filter(note => (!note.para || note.para === null) && !note.archived).length;
-            const unsortedTab = document.querySelector('.filter-tab');
-            
-            // Remove existing badge if any
-            const existingBadge = unsortedTab.querySelector('.unsorted-badge');
-            if (existingBadge) {
-                existingBadge.remove();
-            }
-            
-            // Add badge if there are unsorted notes
-            if (unsortedCount > 0) {
-                const badge = document.createElement('span');
-                badge.className = 'unsorted-badge';
-                badge.textContent = unsortedCount;
-                unsortedTab.appendChild(badge);
-            }
+            // This function is kept for backwards compatibility but now just updates tabs
+            updateTabCounts();
         }
 
         function updateTabCounts() {
@@ -1525,10 +1531,10 @@
         function copyToClipboard() {
             toggleExportMenu();
             
-            const csv = generateCSV();
+            const readableText = generateReadableText();
             
             if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(csv).then(() => {
+                navigator.clipboard.writeText(readableText).then(() => {
                     showToast(`✓ Copied ${notes.length} notes to clipboard!`);
                 }).catch((error) => {
                     showToast('Failed to copy to clipboard');
@@ -1536,6 +1542,52 @@
             } else {
                 showToast('Clipboard not available');
             }
+        }
+
+        function generateReadableText() {
+            let text = `SOMIO NOTES BACKUP\n`;
+            text += `Exported: ${new Date().toLocaleString()}\n`;
+            text += `Total Notes: ${notes.length}\n`;
+            text += `\n${'='.repeat(60)}\n\n`;
+            
+            // Group notes by category
+            const grouped = {
+                'Inbox': notes.filter(n => (!n.para || n.para === null) && !n.archived),
+                'Archived': notes.filter(n => n.archived)
+            };
+            
+            // Add categorized notes
+            customCategories.forEach(cat => {
+                grouped[`${cat.emoji} ${cat.name}`] = notes.filter(n => n.para === cat.id && !n.archived);
+            });
+            
+            // Output each group
+            Object.entries(grouped).forEach(([categoryName, categoryNotes]) => {
+                if (categoryNotes.length === 0) return;
+                
+                text += `\n[ ${categoryName.toUpperCase()} ]\n`;
+                text += `${'-'.repeat(60)}\n\n`;
+                
+                categoryNotes.forEach((note, index) => {
+                    const date = new Date(note.created);
+                    const dateStr = date.toLocaleDateString();
+                    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    
+                    text += `${index + 1}. ${note.text}\n`;
+                    text += `   Date: ${dateStr} ${timeStr}\n`;
+                    
+                    if (note.tags && note.tags.length > 0) {
+                        text += `   Tags: ${note.tags.join(', ')}\n`;
+                    }
+                    
+                    text += `\n`;
+                });
+            });
+            
+            text += `\n${'='.repeat(60)}\n`;
+            text += `End of backup\n`;
+            
+            return text;
         }
 
         function importNotes(event) {
@@ -1616,7 +1668,13 @@
             
             customCategories.forEach((cat, index) => {
                 html += `
-                    <div style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #f9f9f9; border-radius: 8px; margin-bottom: 10px;">
+                    <div class="category-item" draggable="true" 
+                        ondragstart="handleDragStart(event, ${index})" 
+                        ondragover="handleDragOver(event)" 
+                        ondrop="handleDrop(event, ${index})"
+                        ondragend="handleDragEnd(event)"
+                        style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #f9f9f9; border-radius: 8px; margin-bottom: 10px; cursor: move;">
+                        <div style="font-size: 20px; color: #999; cursor: grab; padding: 0 5px;">⋮⋮</div>
                         <input type="text" value="${cat.emoji}" maxlength="2" 
                             onchange="updateCategoryField(${index}, 'emoji', this.value)"
                             style="width: 45px; height: 45px; text-align: center; font-size: 24px; border: 1px solid #ddd; border-radius: 8px;">
@@ -1645,7 +1703,44 @@
                 html += `<p style="text-align: center; color: #999; margin-top: 12px; font-size: 14px;">Maximum ${MAX_CATEGORIES} categories reached</p>`;
             }
             
+            html += `<p style="text-align: center; color: #666; margin-top: 16px; font-size: 13px;">💡 Drag categories to reorder tabs</p>`;
+            
             container.innerHTML = html;
+        }
+
+        let draggedIndex = null;
+
+        function handleDragStart(e, index) {
+            draggedIndex = index;
+            e.target.style.opacity = '0.4';
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            return false;
+        }
+
+        function handleDrop(e, dropIndex) {
+            e.preventDefault();
+            
+            if (draggedIndex === null || draggedIndex === dropIndex) {
+                return;
+            }
+            
+            // Reorder array
+            const item = customCategories.splice(draggedIndex, 1)[0];
+            customCategories.splice(dropIndex, 0, item);
+            
+            saveCategories();
+            renderCategoryManager();
+            rebuildFilterTabs();
+            
+            draggedIndex = null;
+        }
+
+        function handleDragEnd(e) {
+            e.target.style.opacity = '1';
+            draggedIndex = null;
         }
 
         function addCategory() {
@@ -1691,7 +1786,7 @@
             const affectedNotes = notes.filter(n => n.para === cat.id);
             
             if (affectedNotes.length > 0) {
-                const confirmed = confirm(`${affectedNotes.length} note(s) use this category. They will be moved to Unsorted. Continue?`);
+                const confirmed = confirm(`${affectedNotes.length} note(s) use this category. They will be moved to Inbox. Continue?`);
                 if (!confirmed) return;
                 
                 // Move notes to unsorted
@@ -1718,12 +1813,20 @@
             const tabsContainer = document.querySelector('.filter-tabs');
             if (!tabsContainer) return;
             
-            let html = `
-                <button class="filter-tab ${currentFilter === 'unsorted' ? 'active' : ''}" 
-                        onclick="setFilter('unsorted')">
-                    Unsorted <span class="unsorted-badge" id="unsorted-badge" style="display: none;">0</span>
-                </button>
-            `;
+            // Check if inbox has any notes
+            const inboxCount = notes.filter(n => (!n.para || n.para === null) && !n.archived).length;
+            
+            let html = '';
+            
+            // Only show Inbox tab if it has notes
+            if (inboxCount > 0) {
+                html += `
+                    <button class="filter-tab ${currentFilter === 'unsorted' ? 'active' : ''}" 
+                            onclick="setFilter('unsorted')">
+                        📥 Inbox <span class="tab-count">${inboxCount}</span>
+                    </button>
+                `;
+            }
             
             customCategories.forEach(cat => {
                 html += `
@@ -1735,9 +1838,13 @@
             });
             
             html += `
+                <button class="filter-tab ${currentFilter === 'widgets' ? 'active' : ''}" 
+                        onclick="setFilter('widgets')">
+                    🔧 Widgets
+                </button>
                 <button class="filter-tab ${currentFilter === 'archived' ? 'active' : ''}" 
                         onclick="setFilter('archived')">
-                    Archived
+                    📦 Archived
                 </button>
             `;
             
@@ -1834,6 +1941,12 @@
             const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
             const container = document.getElementById('notes-list');
             
+            // Handle Widgets view
+            if (currentFilter === 'widgets') {
+                renderWidgetsView();
+                return;
+            }
+            
             let exactMatches = [];
             let suggestedMatches = [];
             
@@ -1878,7 +1991,7 @@
             
             if (totalResults === 0) {
                 const emptyMessage = currentFilter === 'unsorted' 
-                    ? 'No unsorted notes! 🎉' 
+                    ? 'Inbox is empty! 🎉' 
                     : 'No notes yet';
                 container.innerHTML = `
                     <div class="empty-state">
@@ -1965,6 +2078,105 @@
             setupNoteTouchListeners();
         }
 
+        function renderWidgetsView() {
+            const container = document.getElementById('notes-list');
+            
+            // Count total notes for word cloud
+            const totalNotes = notes.filter(n => !n.archived).length;
+            
+            container.innerHTML = `
+                <div style="padding: 20px;">
+                    <h2 style="margin: 0 0 20px 0; font-size: 20px; color: #333;">Widgets</h2>
+                    
+                    <!-- Random Note Widget -->
+                    <div class="widget-card" onclick="openRandomNote()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 24px; border-radius: 16px; margin-bottom: 16px; cursor: pointer; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                        <div style="font-size: 40px; margin-bottom: 8px;">🎲</div>
+                        <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600;">Random Note</h3>
+                        <p style="margin: 0; opacity: 0.9; font-size: 14px;">Open a random note from your collection</p>
+                        <p style="margin: 8px 0 0 0; font-size: 13px; opacity: 0.7;">${totalNotes} notes available</p>
+                    </div>
+                    
+                    <!-- Word Cloud Widget -->
+                    <div class="widget-card" onclick="openWordCloud()" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 24px; border-radius: 16px; margin-bottom: 16px; cursor: pointer; box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3);">
+                        <div style="font-size: 40px; margin-bottom: 8px;">☁️</div>
+                        <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600;">Word Cloud</h3>
+                        <p style="margin: 0; opacity: 0.9; font-size: 14px;">Explore your most used words and phrases</p>
+                        <p style="margin: 8px 0 0 0; font-size: 13px; opacity: 0.7;">Tap any word to search</p>
+                    </div>
+                    
+                    <div style="margin-top: 32px; padding: 16px; background: #f5f5f7; border-radius: 12px; text-align: center;">
+                        <p style="margin: 0; color: #666; font-size: 14px;">More widgets coming soon!</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openRandomNote() {
+            const availableNotes = notes.filter(n => !n.archived);
+            if (availableNotes.length === 0) {
+                alert('No notes available!');
+                return;
+            }
+            
+            const randomNote = availableNotes[Math.floor(Math.random() * availableNotes.length)];
+            const noteIndex = notes.findIndex(n => n.id === randomNote.id);
+            openEditModal(noteIndex);
+        }
+
+        function openWordCloud() {
+            // Show word cloud modal
+            document.getElementById('word-cloud-modal').style.display = 'block';
+            generateWordCloud();
+        }
+
+        function generateWordCloud() {
+            // Get all text from notes
+            const allText = notes
+                .filter(n => !n.archived)
+                .map(n => n.text.toLowerCase())
+                .join(' ');
+            
+            // Common words to exclude
+            const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'is', 'are', 'was', 'were', 'been', 'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'my', 'your', 'his', 'her', 'its', 'our', 'their', 'this', 'that', 'these', 'those']);
+            
+            // Count word frequency
+            const wordCounts = {};
+            const words = allText.match(/\b[a-z]+\b/g) || [];
+            
+            words.forEach(word => {
+                if (word.length > 3 && !stopWords.has(word)) {
+                    wordCounts[word] = (wordCounts[word] || 0) + 1;
+                }
+            });
+            
+            // Sort by frequency
+            const sortedWords = Object.entries(wordCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 50); // Top 50 words
+            
+            // Render word cloud
+            const container = document.getElementById('word-cloud-container');
+            if (sortedWords.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No words found. Start adding notes!</p>';
+                return;
+            }
+            
+            const maxCount = sortedWords[0][1];
+            
+            container.innerHTML = sortedWords.map(([word, count]) => {
+                const size = 12 + (count / maxCount) * 32; // 12px to 44px
+                const opacity = 0.5 + (count / maxCount) * 0.5;
+                return `<span class="word-cloud-word" onclick="searchWord('${word}')" style="font-size: ${size}px; opacity: ${opacity}; margin: 4px 8px; display: inline-block; cursor: pointer; padding: 4px 8px; border-radius: 4px; transition: all 0.2s;" onmouseover="this.style.background='#007AFF'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='#333'">${word} <span style="font-size: 10px; opacity: 0.5;">${count}</span></span>`;
+            }).join('');
+        }
+
+        function searchWord(word) {
+            document.getElementById('word-cloud-modal').style.display = 'none';
+            document.getElementById('search-input').value = word;
+            setFilter('unsorted'); // Show all notes
+            renderNotes();
+        }
+
         function handleNoteClick(e, index) {
             // Only open modal if we're not in the middle of a radial gesture
             if (!radialMenuActive) {
@@ -1984,26 +2196,30 @@
             containers.forEach(container => {
                 const card = container.querySelector('.note-card');
                 let startX = 0;
+                let startY = 0;
                 let currentX = 0;
                 let isSwiping = false;
+                let hasMoved = false;
                 
                 card.addEventListener('touchstart', (e) => {
                     // Reset other swiped notes
                     resetAllSwipes();
                     
                     startX = e.touches[0].clientX;
+                    startY = e.touches[0].clientY;
                     currentX = 0;
                     isSwiping = false;
+                    hasMoved = false;
                     const noteIndex = parseInt(card.getAttribute('data-note-index'));
                     radialNoteIndex = noteIndex;
                     
-                    // Start long press timer for radial menu
+                    // Start long press timer for radial menu - increased to 500ms
                     longPressTimer = setTimeout(() => {
-                        if (!isSwiping) {
+                        if (!isSwiping && !hasMoved) {
                             const touch = e.touches[0];
                             showRadialMenu(touch.clientX, touch.clientY);
                         }
-                    }, 300);
+                    }, 500);
                 });
                 
                 card.addEventListener('touchmove', (e) => {
@@ -2016,10 +2232,18 @@
                     
                     const touch = e.touches[0];
                     currentX = touch.clientX - startX;
+                    const currentY = touch.clientY - startY;
+                    
+                    // Check if user is scrolling (vertical movement)
+                    if (Math.abs(currentY) > 10) {
+                        hasMoved = true;
+                        clearTimeout(longPressTimer);
+                    }
                     
                     // Only allow left swipe
                     if (currentX < -10) {
                         isSwiping = true;
+                        hasMoved = true;
                         clearTimeout(longPressTimer);
                         e.preventDefault();
                         
@@ -2044,13 +2268,14 @@
                         } else {
                             card.style.transform = 'translateX(0)';
                         }
-                    } else if (!longPressTriggered) {
-                        // Normal tap - open modal
+                    } else if (!longPressTriggered && !hasMoved) {
+                        // Only open modal if it was a true tap (no movement)
                         const noteIndex = parseInt(card.getAttribute('data-note-index'));
                         openEditModal(noteIndex);
                     }
                     
                     isSwiping = false;
+                    hasMoved = false;
                 });
                 
                 card.addEventListener('touchcancel', () => {
@@ -2069,8 +2294,12 @@
         }
 
         function showRadialMenu(x, y) {
-            console.log('showRadialMenu called');
+            console.log('showRadialMenu called at', x, y);
             radialMenuActive = true;
+            
+            // Store the touch position for menu centering
+            window.radialMenuCenterX = x;
+            window.radialMenuCenterY = y;
             
             // Vibration feedback
             if (navigator.vibrate) {
@@ -2099,8 +2328,8 @@
             
             const numCategories = customCategories.length;
             const radius = 140; // Distance from center
-            const centerX = window.innerWidth / 2;
-            const centerY = window.innerHeight / 2;
+            const centerX = window.radialMenuCenterX || window.innerWidth / 2;
+            const centerY = window.radialMenuCenterY || window.innerHeight / 2;
             
             // Calculate angle between each category
             const angleStep = (2 * Math.PI) / numCategories;
@@ -2129,15 +2358,15 @@
         }
 
         function updateRadialHighlight(touchX, touchY) {
-            const centerX = window.innerWidth / 2;
-            const centerY = window.innerHeight / 2;
+            const centerX = window.radialMenuCenterX || window.innerWidth / 2;
+            const centerY = window.radialMenuCenterY || window.innerHeight / 2;
             
             const deltaX = touchX - centerX;
             const deltaY = touchY - centerY;
             const distanceFromCenter = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
             
-            // Cancel zone radius (inside center circle)
-            const cancelRadius = 50;
+            // Increased cancel zone radius (dead zone in center)
+            const cancelRadius = 80;
             
             // Calculate angle from center
             let angle = Math.atan2(deltaY, deltaX);
@@ -3300,6 +3529,20 @@
                 <button onclick="closeCategoryManager()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #666;">×</button>
             </div>
             <div id="category-list" style="padding: 16px;"></div>
+        </div>
+    </div>
+
+    <!-- Word Cloud Modal -->
+    <div id="word-cloud-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 3000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 16px; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto;">
+            <div style="padding: 20px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: white; z-index: 1;">
+                <div>
+                    <h3 style="margin: 0; font-size: 20px;">☁️ Word Cloud</h3>
+                    <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">Tap any word to search for notes containing it</p>
+                </div>
+                <button onclick="document.getElementById('word-cloud-modal').style.display='none'" style="background: none; border: none; font-size: 32px; cursor: pointer; color: #666; line-height: 1;">×</button>
+            </div>
+            <div id="word-cloud-container" style="padding: 24px; text-align: center; line-height: 2;"></div>
         </div>
     </div>
 

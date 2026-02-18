@@ -1821,15 +1821,8 @@
 
         function setFilter(filter) {
             currentFilter = filter;
-            document.querySelectorAll('.filter-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.target.classList.add('active');
-            
-            // Scroll the active tab into view
-            scrollActiveTabIntoView();
-            
             renderNotes();
+            rebuildFilterTabs(); // Rebuild tabs to update active state
         }
 
         function toggleLockFilter(filter, element) {

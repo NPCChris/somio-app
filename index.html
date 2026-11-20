@@ -1614,11 +1614,11 @@
                         <svg class="icon" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>
                     </button>
                     <button class="menu-item" onclick="downloadCSV()">
-                        Download .csv
+                        Back up notes
                         <svg class="icon" viewBox="0 0 24 24"><path d="M12 4v11"/><polyline points="7 10 12 15 17 10"/><line x1="5" y1="20" x2="19" y2="20"/></svg>
                     </button>
                     <button class="menu-item" onclick="document.getElementById('import-file').click()">
-                        Import .csv
+                        Restore from backup
                         <svg class="icon" viewBox="0 0 24 24"><path d="M12 20V9"/><polyline points="7 14 12 9 17 14"/><line x1="5" y1="4" x2="19" y2="4"/></svg>
                     </button>
                 </div>
@@ -2008,15 +2008,22 @@
         }
 
         function generateCSV() {
-            let csv = 'ID,Text,Created,Tags,Category,Archived\n';
-            
+            const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+            let csv = 'ID,Text,Created,Tags,Category,Archived,CategoryName,CategoryEmoji,CategoryColor\n';
+
             notes.forEach(note => {
-                const text = (note.text || '').replace(/"/g, '""').replace(/\n/g, ' ');
-                const tags = (note.tags || []).join(';');
-                const para = note.para || '';
-                const archived = note.archived ? 'true' : 'false';
-                
-                csv += `"${note.id}","${text}","${note.created}","${tags}","${para}","${archived}"\n`;
+                const cat = getCategory(note.para);
+                csv += [
+                    note.id,
+                    note.text || '',
+                    note.created,
+                    (note.tags || []).join(';'),
+                    note.para || '',
+                    note.archived ? 'true' : 'false',
+                    cat ? cat.name : '',
+                    cat ? cat.emoji : '',
+                    cat ? cat.color : ''
+                ].map(q).join(',') + '\n';
             });
             
             return csv;
@@ -2026,11 +2033,22 @@
             toggleExportMenu();
             
             const csv = generateCSV();
+            const filename = `somio-backup-${new Date().toISOString().split('T')[0]}.csv`;
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+
+            // On iPhone, the share sheet is the reliable way to save a file (choose Save to Files)
+            try {
+                const file = new File([blob], filename, { type: 'text/csv' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    navigator.share({ files: [file], title: 'Somio backup' }).catch(() => {});
+                    return;
+                }
+            } catch (e) {}
+
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `somio-export-${new Date().toISOString().split('T')[0]}.csv`;
+            a.download = filename;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -2099,60 +2117,125 @@
             return text;
         }
 
+        // Proper CSV reader: handles commas, quotes and line breaks inside quoted fields
+        function parseCSV(text) {
+            const rows = [];
+            let row = [], field = '', inQuotes = false;
+            text = text.replace(/^\uFEFF/, '');
+            for (let i = 0; i < text.length; i++) {
+                const ch = text[i];
+                if (inQuotes) {
+                    if (ch === '"') {
+                        if (text[i + 1] === '"') { field += '"'; i++; }
+                        else inQuotes = false;
+                    } else {
+                        field += ch;
+                    }
+                } else if (ch === '"') {
+                    inQuotes = true;
+                } else if (ch === ',') {
+                    row.push(field); field = '';
+                } else if (ch === '\n' || ch === '\r') {
+                    if (ch === '\r' && text[i + 1] === '\n') i++;
+                    row.push(field); rows.push(row); row = []; field = '';
+                } else {
+                    field += ch;
+                }
+            }
+            if (field !== '' || row.length) { row.push(field); rows.push(row); }
+            return rows.filter(r => r.some(cell => cell.trim() !== ''));
+        }
+
         function importNotes(event) {
-            toggleExportMenu();
+            document.getElementById('export-menu').style.display = 'none';
             const file = event.target.files[0];
             if (!file) return;
-            
+
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
-                    const csv = e.target.result;
-                    const lines = csv.split('\n');
-                    const imported = [];
-                    
-                    // Skip header row
-                    for (let i = 1; i < lines.length; i++) {
-                        if (!lines[i].trim()) continue;
-                        
-                        // Parse CSV line (handles quoted fields)
-                        const regex = /("(?:[^"]|"")*"|[^,]*)/g;
-                        const matches = lines[i].match(regex);
-                        if (!matches || matches.length < 6) continue;
-                        
-                        const cleanField = (field) => field.replace(/^"|"$/g, '').replace(/""/g, '"').trim();
-                        
-                        const note = {
-                            id: parseInt(cleanField(matches[0])) || Date.now() + i,
-                            text: cleanField(matches[1]),
-                            created: cleanField(matches[2]),
-                            tags: cleanField(matches[3]).split(';').filter(t => t),
-                            para: cleanField(matches[4]) || null,
-                            archived: cleanField(matches[5]) === 'true'
-                        };
-                        
-                        imported.push(note);
+                    const rows = parseCSV(e.target.result);
+                    if (rows.length < 2) {
+                        showToast('No notes found in that file');
+                        return;
                     }
-                    
+
+                    // Find columns by header name so older exports still work
+                    const header = rows[0].map(h => h.trim().toLowerCase());
+                    const col = (name) => header.indexOf(name);
+                    const iId = col('id'), iText = col('text'), iCreated = col('created'),
+                          iTags = col('tags'), iCat = col('category'), iArch = col('archived'),
+                          iCatName = col('categoryname'), iCatEmoji = col('categoryemoji'), iCatColor = col('categorycolor');
+                    if (iText === -1) {
+                        showToast('That file isn\'t a Somio backup');
+                        return;
+                    }
+
+                    // Bring back the categories the backup used (names, emoji, colours)
+                    let categoriesChanged = false;
+                    if (iCat > -1 && iCatName > -1) {
+                        rows.slice(1).forEach(r => {
+                            const id = (r[iCat] || '').trim();
+                            const name = (r[iCatName] || '').trim();
+                            if (!id || !name) return;
+                            const fromFile = {
+                                id,
+                                name,
+                                emoji: (r[iCatEmoji] || '').trim() || '📝',
+                                color: (r[iCatColor] || '').trim() || '#8E8E93'
+                            };
+                            const existing = customCategories.find(c => c.id === id);
+                            if (existing) {
+                                if (existing.name !== fromFile.name || existing.emoji !== fromFile.emoji || existing.color !== fromFile.color) {
+                                    Object.assign(existing, fromFile);
+                                    categoriesChanged = true;
+                                }
+                            } else if (customCategories.length < MAX_CATEGORIES) {
+                                customCategories.push(fromFile);
+                                categoriesChanged = true;
+                            }
+                        });
+                        if (categoriesChanged) saveCategories();
+                    }
+
+                    const existingIds = new Set(notes.map(n => n.id));
+                    const imported = [];
+                    let skipped = 0;
+
+                    rows.slice(1).forEach((r, i) => {
+                        const text = (r[iText] || '').trim();
+                        if (!text) return;
+                        const id = iId > -1 ? (parseInt(r[iId]) || Date.now() + i) : Date.now() + i;
+                        if (existingIds.has(id)) { skipped++; return; }
+                        existingIds.add(id);
+                        imported.push({
+                            id,
+                            text,
+                            created: (iCreated > -1 && r[iCreated]) ? r[iCreated].trim() : new Date().toISOString(),
+                            tags: iTags > -1 ? r[iTags].split(';').map(t => t.trim()).filter(Boolean) : [],
+                            para: (iCat > -1 && getCategory(r[iCat].trim())) ? r[iCat].trim() : null,
+                            archived: iArch > -1 && r[iArch].trim() === 'true'
+                        });
+                    });
+
                     if (imported.length > 0) {
-                        // Add imported notes to beginning
-                        notes = [...imported, ...notes];
+                        notes = [...imported, ...notes].sort((a, b) => new Date(b.created) - new Date(a.created));
                         localStorage.setItem('quickNotes', JSON.stringify(notes));
-                        updateUnsortedBadge();
+                        currentFilter = getDefaultFilter();
                         updateTabCounts();
                         renderNotes();
-                        showToast(`✓ Imported ${imported.length} notes!`);
+                        showToast(`Imported ${imported.length} ${imported.length === 1 ? 'note' : 'notes'}`);
+                    } else if (skipped > 0) {
+                        showToast('Those notes are already here');
                     } else {
-                        showToast('No valid notes found in file');
+                        showToast('No notes found in that file');
                     }
                 } catch (error) {
-                    showToast('Error importing notes');
+                    showToast('Couldn\'t read that file');
                     console.error('Import error:', error);
                 }
             };
             reader.readAsText(file);
-            
-            // Reset file input
             event.target.value = '';
         }
 

@@ -1845,6 +1845,13 @@
             document.getElementById('note-input').focus();
         }
 
+        function focusNoteInput() {
+            const input = document.getElementById('note-input');
+            input.focus();
+            const end = input.value.length;
+            try { input.setSelectionRange(end, end); } catch (e) {}
+        }
+
         // ---------- Capture screen save button ----------
         let savedFlashTimer = null;
 
@@ -4042,6 +4049,20 @@
             fitToVisibleViewport();
             document.getElementById('note-input').addEventListener('input', updateSaveButton);
             updateSaveButton();
+
+            // Any tap on the writing screen (not just the text box) puts the cursor at the end, ready to type
+            document.getElementById('capture-screen').addEventListener('click', (e) => {
+                if (e.target.closest('button') || e.target.id === 'note-input') return;
+                focusNoteInput();
+            });
+
+            // Coming back to the app: put the cursor back in the writing box
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && document.getElementById('capture-screen').style.display !== 'none') {
+                    focusNoteInput();
+                }
+            });
+            focusNoteInput();
 
             const pickerInput = document.getElementById('tag-picker-input');
             pickerInput.addEventListener('keydown', function(e) {
